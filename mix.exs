@@ -7,7 +7,12 @@ defmodule Talon.MixProject do
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_core_path: "_priv/plts",
+        plt_add_apps: [:mix],
+        flags: [:error_handling, :underspecs]
+      ]
     ]
   end
 
@@ -21,7 +26,9 @@ defmodule Talon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-     {:finch, "~> 0.21.0"}
+      {:finch, "~> 0.21.0"},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:jason, "~> 1.4.4"}
     ]
   end
 end
