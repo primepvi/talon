@@ -26,9 +26,8 @@ defmodule Talon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:finch, "~> 0.21.0"},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:jason, "~> 1.4.4"}
+      {:ex_docker_engine_api, "~> 1.43"}
     ]
   end
 end
