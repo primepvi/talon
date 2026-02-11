@@ -1,28 +1,40 @@
 defmodule Talon.Server.Process do
   use GenServer
-  alias Talon.Infra.Docker.Client, as: DockerClient
 
-  def start_link(container_id) do
-    GenServer.start_link(__MODULE__, %{id: container_id, status: :idle})
+  alias Talon.Infra.Docker.Client, as: DockerClient
+  alias Talon.Server.Process.State, as: ProcessState
+
+  @spec start_link(ProcessState.t()) :: any()
+  def start_link(%ProcessState{name: name} = state) do
+    GenServer.start_link(__MODULE__, state, name: via_tuple(name))
   end
 
+  defp via_tuple(name) do
+    {:via, Registry, {Talon.Server.ProcessRegistry, name}}
+  end
+
+  @spec init(ProcessState.t()) :: {:ok, ProcessState.t()}
   @impl true
   def init(state) do
     {:ok, state}
   end
 
-  def start(pid) do
-    GenServer.cast(pid, :start)
+  @spec start(String.t()) :: {:noreply, ProcessState.t()}
+  def start(name) do
+    name_tuple = via_tuple(name)
+    GenServer.cast(name_tuple, :start)
   end
 
-  def inspect(pid) do
-    GenServer.call(pid, :inspect)
+  @spec inspect(String.t()) :: {:reply, ProcessState.t(), ProcessState.t()}
+  def inspect(name) do
+    name_tuple = via_tuple(name)
+    GenServer.call(name_tuple, :inspect)
   end
 
   @impl true
-  def handle_cast(:start, state) do
-    if state[:status] == :idle do
-      DockerClient.container_start(state[:id])
+  def handle_cast(:start, %ProcessState{id: id, status: status} = state) do
+    if status == :idle do
+      DockerClient.container_start(id)
       {:noreply, %{state | status: :running}}
     else
       {:noreply, state}
