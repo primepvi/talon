@@ -3,7 +3,7 @@ defmodule Talon.Server.Supervisor do
 
   alias Talon.Server.Process.Data, as: ProcessData
   alias Talon.Server.Process.State, as: ProcessState
-  alias Talon.Infra.Docker.Client, as: DockerClient
+  alias Talon.Server.Engine
 
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
@@ -14,25 +14,11 @@ defmodule Talon.Server.Supervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  @spec create_process(ProcessData.t()) :: {:ok, pid()} | {:error, String.t()}
   def create_process(data) do
-    DockerClient.container_exists?(data.name)
-    |> ensure_container(data)
+    data
+    |> Engine.prepare_container
     |> start_child(data.name)
-  end
-
-  @spec ensure_container(boolean(), ProcessData.t()) :: {:ok, String.t()} | {:error, String.t()}
-  defp ensure_container(true, data) do
-    case DockerClient.container_inspect(data.name) do
-      {:ok, %{Id: container_id}} -> {:ok, container_id}
-      error -> error
-    end
-  end
-
-  defp ensure_container(false, data) do
-    case DockerClient.container_create(data.name, data.image, data.tag) do
-      {:ok, %{Id: container_id}} -> {:ok, container_id}
-      error -> error
-    end
   end
 
   @spec start_child({:ok, String.t()} | {:error, String.t()}, String.t()) :: {:ok, pid()} | {:error, String.t()}

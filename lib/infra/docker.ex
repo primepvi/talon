@@ -1,10 +1,13 @@
-defmodule Talon.Infra.Docker.Client do
+defmodule Talon.Infra.Docker do
+  alias DockerEngineAPI.Api.Image
   alias DockerEngineAPI.Model
   alias DockerEngineAPI.Api.Container
 
   @version "v1.51"
   @base_url Application.compile_env(:talon, :docker_host, "http://localhost:2375/") <>
-              @version <> "/"
+    @version <> "/"
+    @base_path Application.compile_env(:talon, :repo_directory, "./talon/")
+
   @connection DockerEngineAPI.Connection.new(base_url: @base_url, recv_timeout: 300_000)
 
   @spec container_create(String.t(), String.t(), String.t()) ::
@@ -50,5 +53,15 @@ defmodule Talon.Infra.Docker.Client do
   @spec container_start(String.t()) :: any()
   def container_start(reference) do
     Container.container_start(@connection, reference)
+  end
+
+  @spec image_build(String.t()) :: {:ok, nil} | {:error, String.t()}
+  def image_build(name) do
+    opts = [dockerfile: @base_path <> name, t: "#{name}:latest"]
+    case Image.image_build(@connection, opts) do
+      {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
+      {:ok, _payload} -> {:ok, nil}
+      error -> error
+    end
   end
 end

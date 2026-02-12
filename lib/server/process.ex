@@ -1,7 +1,7 @@
 defmodule Talon.Server.Process do
   use GenServer
 
-  alias Talon.Infra.Docker.Client, as: DockerClient
+  alias Talon.Infra.Docker, as: DockerClient
   alias Talon.Server.Process.State, as: ProcessState
 
   @spec start_link(ProcessState.t()) :: any()
@@ -46,3 +46,4 @@ defmodule Talon.Server.Process do
     {:reply, state, state}
   end
 end
+
