@@ -5,8 +5,8 @@ defmodule Talon.Infra.Docker do
 
   @version "v1.51"
   @base_url Application.compile_env(:talon, :docker_host, "http://localhost:2375/") <>
-    @version <> "/"
-    @base_path Application.compile_env(:talon, :repo_directory, "./talon/")
+              @version <> "/"
+  @base_path Application.compile_env(:talon, :repo_directory, "./talon/")
 
   @connection DockerEngineAPI.Connection.new(base_url: @base_url, recv_timeout: 300_000)
 
@@ -16,8 +16,12 @@ defmodule Talon.Infra.Docker do
     body = %Model.ContainerCreateRequest{
       Image: "#{image}:#{tag}",
       HostConfig: %Model.HostConfig{},
-      Labels: %{"talon.container_name" => name}
+      Labels: %{"talon.managed" => "."}
     }
+
+    unless image_pulled?(image, tag) do
+      image_pull(image, tag)
+    end
 
     opts = [name: name]
 
@@ -41,7 +45,8 @@ defmodule Talon.Infra.Docker do
     end
   end
 
-  @spec container_inspect(String.t()) :: {:ok, Model.ContainerInspectResponse.t()} | {:error, String.t()}
+  @spec container_inspect(String.t()) ::
+          {:ok, Model.ContainerInspectResponse.t()} | {:error, String.t()}
   def container_inspect(reference) do
     case Container.container_inspect(@connection, reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
@@ -57,11 +62,37 @@ defmodule Talon.Infra.Docker do
 
   @spec image_build(String.t()) :: {:ok, nil} | {:error, String.t()}
   def image_build(name) do
-    opts = [dockerfile: @base_path <> name, t: "#{name}:latest"]
-    case Image.image_build(@connection, opts) do
+    {:ok, tar_binary} = File.read("./talon/test.tar")
+
+    case Image.image_build(@connection,
+           t: "#{name}:latest",
+           body: tar_binary,
+           dockerfile: "Dockerfile"
+         ) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
       {:ok, _payload} -> {:ok, nil}
-      error -> error
+      _ -> {:error, "Unexpected error during image build."}
+    end
+  end
+
+  @spec image_pull(String.t(), String.t()) :: {:ok, nil} | {:error, String.t()}
+  def image_pull(image, tag) do
+    opts = [fromImage: image, tag: tag]
+
+    case Image.image_create(@connection, opts) do
+      {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
+      {:ok, _payload} -> {:ok, nil}
+      _ -> {:error, "Unexpected error during image pull."}
+    end
+  end
+
+  @spec image_pulled?(String.t(), String.t()) :: boolean()
+  def image_pulled?(image, tag) do
+    filters = Jason.encode!(%{reference: ["#{image}:#{tag}"]})
+
+    case Image.image_list(@connection, filters: filters) do
+      {:ok, result} -> length(result) > 0
+      {:error, _reason} -> false
     end
   end
 end
