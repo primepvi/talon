@@ -28,6 +28,8 @@ defmodule Talon.MixProject do
     [
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_docker_engine_api, "~> 1.43"},
+      {:websockex, "~> 0.5"},
+      {:uuid, "~> 1.1"}
     ]
   end
 end
