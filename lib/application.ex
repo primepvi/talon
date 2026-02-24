@@ -1,11 +1,12 @@
 defmodule Talon.Application do
   use Application
-  
+
   @impl true
   def start(_type, _args) do
     children = [
       {Registry, keys: :unique, name: Talon.Server.ProcessRegistry},
-      Talon.Server.Supervisor
+      Talon.Server.Supervisor,
+      Talon.Infra.Docker
     ]
 
     Supervisor.start_link(children, [strategy: :one_for_one, name: Talon.Supervisor])

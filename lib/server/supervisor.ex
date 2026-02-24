@@ -18,7 +18,7 @@ defmodule Talon.Server.Supervisor do
   def create_process(data) do
     data
     |> Engine.prepare_container
-    |> start_child(data.name)
+    |> start_child(data.config.name)
   end
 
   @spec start_child({:ok, String.t()} | {:error, String.t()}, String.t()) :: {:ok, pid()} | {:error, String.t()}
