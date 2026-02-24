@@ -1,8 +1,7 @@
-defmodule Talon.Server.Engine do
+defmodule Talon.App.Engine do
   alias Talon.Infra.Docker, as: DockerClient
   alias Talon.Infra.Git, as: GitClient
-  alias Talon.Server.Process.Data, as: ProcessData
-  alias Talon.Infra.Docker.ContainerConfig
+  alias Talon.App.Process.Data, as: ProcessData
 
   @spec prepare_container(ProcessData.t()) :: {:ok, String.t()} | {:error, String.t()}
   def prepare_container(data) do

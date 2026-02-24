@@ -1,4 +1,4 @@
-defmodule Talon.Server.Process.Data do
+defmodule Talon.App.Process.Data do
   alias Talon.Infra.Docker.ContainerConfig
 
   defstruct [:config, :repository, :source_type]

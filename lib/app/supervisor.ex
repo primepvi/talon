@@ -1,9 +1,9 @@
-defmodule Talon.Server.Supervisor do
+defmodule Talon.App.Supervisor do
   use DynamicSupervisor
 
-  alias Talon.Server.Process.Data, as: ProcessData
-  alias Talon.Server.Process.State, as: ProcessState
-  alias Talon.Server.Engine
+  alias Talon.App.Process.Data, as: ProcessData
+  alias Talon.App.Process.State, as: ProcessState
+  alias Talon.App.Engine
 
   def start_link(init_arg) do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
@@ -23,7 +23,7 @@ defmodule Talon.Server.Supervisor do
 
   @spec start_child({:ok, String.t()} | {:error, String.t()}, String.t()) :: {:ok, pid()} | {:error, String.t()}
   defp start_child({:ok, container_id}, name) do
-    spec = {Talon.Server.Process, %ProcessState{id: container_id, name: name}}
+    spec = {Talon.App.Process, %ProcessState{id: container_id, name: name}}
     DynamicSupervisor.start_child(__MODULE__, spec)
   end
 

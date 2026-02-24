@@ -1,8 +1,8 @@
-defmodule Talon.Server.Process do
+defmodule Talon.App.Process do
   use GenServer
 
   alias Talon.Infra.Docker, as: DockerClient
-  alias Talon.Server.Process.State, as: ProcessState
+  alias Talon.App.Process.State, as: ProcessState
 
   @spec start_link(ProcessState.t()) :: any()
   def start_link(%ProcessState{name: name} = state) do
@@ -10,7 +10,7 @@ defmodule Talon.Server.Process do
   end
 
   defp via_tuple(name) do
-    {:via, Registry, {Talon.Server.ProcessRegistry, name}}
+    {:via, Registry, {Talon.App.ProcessRegistry, name}}
   end
 
   @spec init(ProcessState.t()) :: {:ok, ProcessState.t()}
@@ -46,4 +46,3 @@ defmodule Talon.Server.Process do
     {:reply, state, state}
   end
 end
-

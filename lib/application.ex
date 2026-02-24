@@ -4,8 +4,8 @@ defmodule Talon.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Registry, keys: :unique, name: Talon.Server.ProcessRegistry},
-      Talon.Server.Supervisor,
+      {Registry, keys: :unique, name: Talon.App.ProcessRegistry},
+      Talon.App.Supervisor,
       Talon.Infra.Docker
     ]
 
