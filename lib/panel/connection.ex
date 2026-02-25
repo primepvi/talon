@@ -1,6 +1,8 @@
 defmodule Talon.Panel.Connection do
   use WebSockex
+
   alias Talon.Panel.MessageHandler
+  alias Talon.Panel.Message
 
   @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
@@ -42,11 +44,11 @@ defmodule Talon.Panel.Connection do
   end
 
   @impl true
-  def handle_cast(:register, state) do
-    message = %{
+  def handle_cast(:register, _state) do
+    message = %Message{
       type: "node.register",
       correlation_id: UUID.uuid4(),
-      payload: %{
+      payload: %Talon.Payloads.Node.Register{
         node_id: "banana",
         version: "v0.1"
       }

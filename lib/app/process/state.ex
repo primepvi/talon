@@ -1,11 +1,8 @@
 defmodule Talon.App.Process.State do
-  defstruct [:id, :name, status: :idle]
-
-  @type process_status() :: :idle | :running | :error
+  defstruct [:app, container_id: nil]
 
   @type t() :: %__MODULE__{
-    id: String.t(),
-    name: String.t(),
-    status: process_status()
+    app: Talon.Payloads.App.Create.t(),
+    container_id: String.t() | nil
   }
 end

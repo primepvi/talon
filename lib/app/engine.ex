@@ -1,8 +1,18 @@
 defmodule Talon.App.Engine do
-  alias Talon.Infra.Docker, as: DockerClient
-  alias Talon.Infra.Git, as: GitClient
-  alias Talon.App.Process.Data, as: ProcessData
+  # alias Talon.Infra.Docker, as: DockerClient
+  # alias Talon.Infra.Git, as: GitClient
+  alias Talon.Payloads.App
+  alias Talon.App.Supervisor
 
+  @spec handle_app_create(App.Create.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def handle_app_create(payload) do
+    Supervisor.create_process(%Talon.App.Process.State{
+      app: payload
+    })
+  end
+
+  @doc """
+  TODO: fix this
   @spec prepare_container(ProcessData.t()) :: {:ok, String.t()} | {:error, String.t()}
   def prepare_container(data) do
     exists = DockerClient.container_exists?(data.config.name)
@@ -24,9 +34,10 @@ defmodule Talon.App.Engine do
   defp handle_preparation(%{exists: false, data: %{source_type: :dockerfile} = data}) do
     with {:ok, _path} <- GitClient.clone(data.repository, data.config.name),
          {:ok, nil} <- DockerClient.image_build(data.config.name, "latest") do
-      DockerClient.container_create(%{data.config | image: "#{data.config.name}:latest"})
+      DockerClient.container_create(%{data.config | image: "\#{data.config.name}:latest"})
     else
       error -> error
     end
   end
+  """
 end

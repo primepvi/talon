@@ -5,8 +5,8 @@ defmodule Talon.App.Process do
   alias Talon.App.Process.State, as: ProcessState
 
   @spec start_link(ProcessState.t()) :: any()
-  def start_link(%ProcessState{name: name} = state) do
-    GenServer.start_link(__MODULE__, state, name: via_tuple(name))
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state.app.name, name: via_tuple(state.app.name))
   end
 
   defp via_tuple(name) do
@@ -32,13 +32,9 @@ defmodule Talon.App.Process do
   end
 
   @impl true
-  def handle_cast(:start, %ProcessState{id: id, status: status} = state) do
-    if status == :idle do
-      DockerClient.container_start(id)
-      {:noreply, %{state | status: :running}}
-    else
-      {:noreply, state}
-    end
+  def handle_cast(:start, %ProcessState{container_id: id} = state) do
+    DockerClient.container_start(id)
+    {:noreply, state}
   end
 
   @impl true
