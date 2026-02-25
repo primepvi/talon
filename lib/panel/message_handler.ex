@@ -13,7 +13,7 @@ defmodule Talon.Panel.MessageHandler do
     end
   end
 
-  @spec ack(String.t(), :accepted | {:rejected, String.t()}) :: :ok
+  @spec ack(String.t(), :accepted) :: :ok
   defp ack(correlation_id, :accepted) do
     Connection.send_message(%{
       type: "ack",
@@ -22,6 +22,7 @@ defmodule Talon.Panel.MessageHandler do
     })
   end
 
+  @spec ack(String.t(), {:rejected, String.t()}) :: :ok
   defp ack(correlation_id, {:rejected, reason}) do
     Connection.send_message(%{
       type: "ack",

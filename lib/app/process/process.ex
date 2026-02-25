@@ -19,7 +19,7 @@ defmodule Talon.App.Process do
     {:ok, state}
   end
 
-  @spec start(String.t()) :: {:noreply, ProcessState.t()}
+  @spec start(String.t()) :: :ok
   def start(name) do
     name_tuple = via_tuple(name)
     GenServer.cast(name_tuple, :start)
