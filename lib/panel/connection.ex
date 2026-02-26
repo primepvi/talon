@@ -2,7 +2,6 @@ defmodule Talon.Panel.Connection do
   use WebSockex
 
   alias Talon.Panel.MessageHandler
-  alias Talon.Panel.Message
 
   @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
@@ -17,58 +16,41 @@ defmodule Talon.Panel.Connection do
   end
 
   def send_message(message) do
-    WebSockex.cast(__MODULE__, {:send, message})
+    WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(message)}})
   end
 
   @impl true
   def handle_connect(_conn, state) do
-    send(self(), :register)
-    {:ok, %{state | retry_count: 0}}
-  end
-
-  @impl true
-  def handle_frame({:text, data}, state) do
-    data
-    |> Jason.decode!()
-    |> MessageHandler.dispatch()
-
-    {:ok, state}
-  end
-
-  def handle_frame({:ping, _}, state) do
-    {:reply, {:pong, ""}, state}
-  end
-
-  def handle_frame(_frame, state) do
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_cast(:register, _state) do
-    message = %Message{
+    %{
       type: "node.register",
       correlation_id: UUID.uuid4(),
-      payload: %Talon.Payloads.Node.Register{
+      payload: %{
         node_id: "banana",
         version: "v0.1"
       }
     }
+    |> send_message
 
-    {:reply, {:text, Jason.encode!(message)}}
+    {:ok, %{state | retry_count: 0}}
+  end
+
+  @impl true
+  def handle_cast({:send, frame}, state) do
+    {:reply, frame, state}
+  end
+
+  @impl true
+  def handle_frame({:text, msg}, state) do
+    msg
+    |> Jason.decode!
+    |> MessageHandler.dispatch
+
+    {:ok, state}
   end
 
   @impl true
   def handle_disconnect(%{reason: reason}, state) do
-    interval =
-      @backoff_intervals
-      |> Enum.at(state.retry_count, List.last(@backoff_intervals))
-      |> jitter()
-
-    Process.sleep(interval)
-    {:reconnect, %{state | retry_count: state.retry_count + 1}}
-  end
-
-  defp jitter(interval) do
-    :rand.uniform(div(interval, 2)) + interval
+    IO.inspect(reason, label: "desconectado")
+    {:ok, state}
   end
 end
