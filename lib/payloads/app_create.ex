@@ -4,9 +4,9 @@ defmodule Talon.Payloads.App.Create do
   defstruct [
     :app_id,
     :name,
-    :image,
     :strategy,
     :resources,
+    image: nil,
     env: %{},
     repo: nil,
     branch: "main",
@@ -17,7 +17,7 @@ defmodule Talon.Payloads.App.Create do
     resources = struct(__MODULE__, payload.resources || %{})
 
     validate(payload, [
-      required(payload, [:app_id, :name, :image, :strategy, :resources]),
+      required(payload, [:app_id, :name, :strategy, :resources]),
       validate_string(payload, :app_id),
       validate_string(payload, :name),
       validate_string(payload, :image),
@@ -39,7 +39,7 @@ defmodule Talon.Payloads.App.Create do
   @type t() :: %__MODULE__{
           app_id: String.t(),
           name: String.t(),
-          image: String.t(),
+          image: String.t() | nil,
           strategy: strategy(),
           resources: %{memory: integer(), cpu: float()},
           env: map() | nil,
