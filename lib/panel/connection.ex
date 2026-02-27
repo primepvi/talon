@@ -50,7 +50,7 @@ defmodule Talon.Panel.Connection do
 
   @impl true
   def handle_disconnect(%{reason: reason}, state) do
-    IO.inspect(reason, label: "desconectado")
+    IO.inspect(reason, label: "Disconnected.")
     {:ok, state}
   end
 end

@@ -16,7 +16,7 @@ defmodule Talon.App.Process do
   @spec init(ProcessState.t()) :: {:ok, ProcessState.t()}
   @impl true
   def init(state) do
-    {:ok, state}
+    {:ok, %{state | status: :empty}}
   end
 
   @spec start(String.t()) :: :ok
@@ -25,10 +25,10 @@ defmodule Talon.App.Process do
     GenServer.cast(id_tuple, :start)
   end
 
-  @spec deploy(String.t(), String.t(), String.t()) :: :ok
-  def deploy(id, deploy_id, container_id) do
+  @spec update(String.t(), map()) :: :ok
+  def update(id, new_state) do
     id_tuple = via_tuple(id)
-    GenServer.cast(id_tuple, {:deploy, deploy_id, container_id})
+    GenServer.cast(id_tuple, {:update, new_state})
   end
 
   @spec inspect(String.t()) :: {:reply, ProcessState.t(), ProcessState.t()}
@@ -40,12 +40,12 @@ defmodule Talon.App.Process do
   @impl true
   def handle_cast(:start, %ProcessState{container_id: id} = state) do
     DockerClient.container_start(id)
-    {:noreply, state}
+    {:noreply, %{state | status: :running}}
   end
 
   @impl true
-  def handle_cast({:deploy, deploy_id, container_id}, state) do
-    {:noreply, %{state | container_id: container_id, deploy_id: deploy_id}}
+  def handle_cast({:update, new_state}, state) do
+    {:noreply, Map.merge(state, new_state)}
   end
 
   @impl true

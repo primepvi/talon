@@ -41,9 +41,12 @@ defmodule Talon.Infra.Docker do
       Image: config.image,
       HostConfig: %Model.HostConfig{
         Memory: trunc(config.memory * 1024 * 1024),
-        NanoCpus: trunc(config.cpu * 1_000_000_000)
+        NanoCpus: trunc(config.cpu * 1_000_000_000),
+        PortBindings: %{
+          "#{config.port}/tcp" => [%{"HostIp" => "0.0.0.0", "HostPort" => "#{config.port}"}]
+        }
       },
-      Env: config.env,
+      Env: [config.env | "PORT=#{config.port}"],
       Labels: %{
         "talon.managed" => "true",
         "talon.app" => config.name
