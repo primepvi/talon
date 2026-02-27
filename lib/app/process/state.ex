@@ -1,7 +1,7 @@
 defmodule Talon.App.Process.State do
-  defstruct [:app, :status, container_id: nil, deploy_id: nil]
+  defstruct [:app, status: :empty, container_id: nil, deploy_id: nil]
 
-  @type status() :: :empty | :idle | :running | :crashed
+  @type status() :: :empty | :idle | :deploying | :running  | :failed | :crashed
 
   @type t() :: %__MODULE__{
     app: Talon.Payloads.App.Create.t(),

@@ -12,21 +12,11 @@ defmodule Talon.App.Engine do
     })
   end
 
-  @spec handle_app_deploy(App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
-  def handle_app_deploy(payload) do
-    with {:ok, port} <- port_allocate(),
-         %AppProcess.State{app: app} <- AppProcess.inspect(payload.app_id),
-         {:ok, container_id} <- ensure_container(port, app) do
-      AppProcess.update(app.app_id, %{
-        deploy_id: payload.deploy_id,
-        container_id: container_id,
-        port: port,
-        status: :running
-      })
-
+  @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_deploy(correlation_id, payload) do
+    with {:ok, port} <- port_allocate() do
+      AppProcess.deploy(correlation_id, payload, port)
       {:ok, nil}
-    else
-      error -> error
     end
   end
 
@@ -34,8 +24,9 @@ defmodule Talon.App.Engine do
   def handle_app_redeploy(payload) do
   end
 
-  @spec ensure_container(integer(), App.Create.t()) :: {:ok, String.t()} | {:error, String.t()}
-  defp ensure_container(port, %{strategy: :registry} = app) do
+  @spec handle_start_app_deploy(integer(), App.Create.t()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  def handle_start_app_deploy(port, %{strategy: :registry} = app) do
     [image, tag] = String.split(app.image, ":")
 
     with {:ok, container_id} <-
@@ -53,14 +44,10 @@ defmodule Talon.App.Engine do
            }),
          :ok <- healthcheck(port) do
       {:ok, container_id}
-    else
-      error ->
-        AppProcess.update(app.app_id, %{status: :crashed})
-        error
     end
   end
 
-  defp ensure_container(port, %{strategy: :dockerfile} = app) do
+  def handle_start_app_deploy(port, %{strategy: :dockerfile} = app) do
     with {:ok, _path} <- GitClient.clone(app.repo, app.name),
          {:ok, nil} <- DockerClient.image_build(app.name, app.commit),
          {:ok, container_id} <-
@@ -78,10 +65,6 @@ defmodule Talon.App.Engine do
            }),
          :ok <- healthcheck(port) do
       {:ok, container_id}
-    else
-      error ->
-        AppProcess.update(app.app_id, %{status: :crashed})
-        error
     end
   end
 

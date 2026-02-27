@@ -6,20 +6,23 @@ defmodule Talon.Panel.MessageHandler do
   @spec dispatch(Talon.Panel.Message.t()) :: :ok
   def dispatch(%{"type" => "app.create"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
-    payload = Payloads.App.Create.from_map(raw_payload)
 
-    case Engine.handle_app_create(payload) do
-      {:ok, _pid} -> ack(correlation_id, :accepted)
+    with {:ok, payload} <- Payloads.App.Create.from_map(raw_payload),
+         {:ok, _pid} <- Engine.handle_app_create(payload) do
+      ack(correlation_id, :accepted)
+    else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
     end
   end
 
   def dispatch(%{"type" => "app.deploy"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
-    payload = Payloads.App.Deploy.from_map(raw_payload)
 
-    case Engine.handle_app_deploy(payload) do
-      {:ok, nil} -> ack(correlation_id, :accepted)
+    with {:ok, payload} <- Payloads.App.Deploy.from_map(raw_payload),
+         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
+         {:ok, nil} <- Engine.handle_app_deploy(payload) do
+      ack(correlation_id, :accepted)
+    else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
     end
   end

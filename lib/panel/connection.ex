@@ -1,7 +1,10 @@
 defmodule Talon.Panel.Connection do
   use WebSockex
 
+  alias Talon.Panel.Message
   alias Talon.Panel.MessageHandler
+  alias Talon.Payloads.App
+  alias Talon.Payloads.Node
 
   @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
@@ -15,22 +18,35 @@ defmodule Talon.Panel.Connection do
     )
   end
 
+  @spec send_message(Message.t()) :: :ok
   def send_message(message) do
     WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(message)}})
   end
 
-  @impl true
-  def handle_connect(_conn, state) do
-    %{
+  @spec send_app_state(String.t(), App.State.t()) :: :ok
+  def send_app_state(correlation_id, payload) do
+    send_message(%Message{
+      type: "app.state",
+      correlation_id: correlation_id,
+      payload: payload
+    })
+  end
+
+  defp send_node_register() do
+     %Message{
       type: "node.register",
       correlation_id: UUID.uuid4(),
-      payload: %{
+      payload: %Node.Register{
         node_id: "banana",
         version: "v0.1"
       }
     }
     |> send_message
+  end
 
+  @impl true
+  def handle_connect(_conn, state) do
+    send_node_register()
     {:ok, %{state | retry_count: 0}}
   end
 
