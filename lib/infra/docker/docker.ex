@@ -46,7 +46,7 @@ defmodule Talon.Infra.Docker do
           "#{config.port}/tcp" => [%{"HostIp" => "0.0.0.0", "HostPort" => "#{config.port}"}]
         }
       },
-      Env: [config.env | "PORT=#{config.port}"],
+      Env: config.env ++ "PORT=#{config.port}",
       Labels: %{
         "talon.managed" => "true",
         "talon.app" => config.name
