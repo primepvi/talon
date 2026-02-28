@@ -1,12 +1,11 @@
 defmodule Talon.Infra.Git do
-  @base_path Application.compile_env(:talon, :repo_directory, "./talon/")
-
   @spec clone(String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def clone(repository, target) do
-    path = Path.expand(Path.join(@base_path, target))
+    base_path = Application.get_env(:talon, :repo_directory, "./talon/")
+    path = Path.expand(Path.join(base_path, target))
     tar_path = "#{path}.tar"
 
-    File.mkdir_p!(@base_path)
+    File.mkdir_p!(base_path)
 
     case System.cmd("git", ["clone", "--depth", "1", repository, path], stderr_to_stdout: true) do
       {_out, 0} ->
@@ -29,6 +28,7 @@ defmodule Talon.Infra.Git do
 
       {:error, reason} ->
         {:error, "Unexpected error during clone tar generation: #{inspect(reason)}"}
+      _ -> {:error, "Unexpected error ocurred during git clone tar generation."}
     end
   end
 end

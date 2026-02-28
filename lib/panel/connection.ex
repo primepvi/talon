@@ -37,7 +37,7 @@ defmodule Talon.Panel.Connection do
       type: "node.register",
       correlation_id: UUID.uuid4(),
       payload: %Node.Register{
-        node_id: Application.get_env(:talon, "node_id"),
+        node_id: Application.get_env(:talon, :node_id, "banana"),
         version: "v0.1"
       }
     }
