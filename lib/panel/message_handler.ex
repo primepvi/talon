@@ -20,7 +20,7 @@ defmodule Talon.Panel.MessageHandler do
 
     with {:ok, payload} <- Payloads.App.Deploy.from_map(raw_payload),
          {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
-         {:ok, nil} <- Engine.handle_app_deploy(payload) do
+         {:ok, nil} <- Engine.handle_app_deploy(correlation_id, payload) do
       ack(correlation_id, :accepted)
     else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
