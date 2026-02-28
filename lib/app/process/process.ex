@@ -71,7 +71,8 @@ defmodule Talon.App.Process do
             Connection.send_app_state(correlation_id, %App.State{
               app_id: payload.app_id,
               deploy_id: payload.deploy_id,
-              state: :failed
+              state: :failed,
+              reason: reason
             })
         end
       end)
