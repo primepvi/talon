@@ -5,9 +5,9 @@ defmodule Talon.Payloads.App.Deploy do
 
   defp validate_raw(payload) do
     validate(payload, [
-      required(payload, [:app_id, :deploy_id]),
-      validate_string(payload, :app_id),
-      validate_string(payload, :deploy_id)
+      required(payload, ["app_id", "deploy_id"]),
+      validate_string(payload, "app_id"),
+      validate_string(payload, "deploy_id")
     ])
   end
 

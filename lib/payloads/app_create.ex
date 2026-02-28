@@ -14,24 +14,24 @@ defmodule Talon.Payloads.App.Create do
   ]
 
   defp validate_raw(payload) do
-    resources = struct(__MODULE__, payload.resources || %{})
+    resources = payload["resources"]
 
     validate(payload, [
-      required(payload, [:app_id, :name, :strategy, :resources]),
-      validate_string(payload, :app_id),
-      validate_string(payload, :name),
-      validate_string(payload, :image),
-      validate_atom(payload, :strategy, [:dockerfile, :registry]),
-      validate_map(payload, :resources),
-      required(resources, [:cpu, :memory]),
-      validate_float(resources, :cpu),
-      validate_positive(resources, :cpu),
-      validate_integer(resources, :memory),
-      validate_positive(resources, :memory),
-      validate_map_of_strings(payload, :env),
-      validate_string(payload, :repo),
-      validate_string(payload, :branch),
-      validate_string(payload, :commit)
+      required(payload, ["app_id", "name", "strategy", "resources"]),
+      validate_string(payload, "app_id"),
+      validate_string(payload, "name"),
+      validate_string(payload, "image"),
+      validate_atom(payload, "strategy", [:dockerfile, :registry]),
+      validate_map(payload, "resources"),
+      required(resources, ["cpu", "memory"]),
+      validate_float(resources, "cpu"),
+      validate_positive(resources, "cpu"),
+      validate_integer(resources, "memory"),
+      validate_positive(resources, "memory"),
+      validate_map_of_strings(payload, "env"),
+      validate_string(payload, "repo"),
+      validate_string(payload, "branch"),
+      validate_string(payload, "commit")
     ])
   end
 
