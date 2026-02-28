@@ -27,6 +27,7 @@ defmodule Talon.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:jason, "~> 1.4"},
       {:ex_docker_engine_api, "~> 1.43"},
       {:websockex, "~> 0.5"},
       {:uuid, "~> 1.1"}
