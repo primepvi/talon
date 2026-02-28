@@ -42,6 +42,7 @@ defmodule Talon.App.Engine do
                |> Map.to_list()
                |> Enum.map(&"#{elem(&1, 0)}=#{elem(&1, 1)}")
            }),
+         {:ok, nil} <- DockerClient.container_start(container_id),
          :ok <- healthcheck(port) do
       {:ok, container_id}
     end
@@ -63,6 +64,7 @@ defmodule Talon.App.Engine do
                |> Map.to_list()
                |> Enum.map(&"#{elem(&1, 0)}=#{elem(&1, 1)}")
            }),
+         {:ok, nil} <- DockerClient.container_start(container_id),
          :ok <- healthcheck(port) do
       {:ok, container_id}
     end
