@@ -14,7 +14,7 @@ defmodule Talon.App.Engine do
 
   @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
   def handle_app_deploy(correlation_id, payload) do
-    with {:ok, port} <- port_allocate() do
+    with {:ok, port} <- Talon.App.PortManager.allocate() do
       AppProcess.deploy(correlation_id, payload, port)
       {:ok, nil}
     end
@@ -67,27 +67,6 @@ defmodule Talon.App.Engine do
          {:ok, nil} <- DockerClient.container_start(container_id),
          :ok <- healthcheck(port) do
       {:ok, container_id}
-    end
-  end
-
-  defp port_allocate() do
-    49_152..65_535
-    |> Enum.shuffle()
-    |> Enum.find(&port_available?/1)
-    |> case do
-      nil -> {:error, "No available ports."}
-      port -> {:ok, port}
-    end
-  end
-
-  defp port_available?(port) do
-    case :gen_tcp.listen(port, [:binary, reuseaddr: true]) do
-      {:ok, socket} ->
-        :gen_tcp.close(socket)
-        true
-
-      {:error, _} ->
-        false
     end
   end
 

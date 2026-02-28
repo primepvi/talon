@@ -6,8 +6,9 @@ defmodule Talon.Application do
     children = [
       {Registry, keys: :unique, name: Talon.App.Process.Registry},
       Talon.App.Supervisor,
+      Talon.App.PortManager,
       Talon.Infra.Docker,
-      Talon.Panel.Connection
+      Talon.Panel.Connection,
     ]
 
     Supervisor.start_link(children, [strategy: :one_for_one, name: Talon.Supervisor])
