@@ -20,10 +20,6 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_app_redeploy(App.Redeploy.t()) :: {:ok, nil} | {:error, String.t()}
-  def handle_app_redeploy(payload) do
-  end
-
   @spec handle_start_app_deploy(integer(), App.Create.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_deploy(port, %{strategy: :registry} = app) do
@@ -66,6 +62,25 @@ defmodule Talon.App.Engine do
            }),
          {:ok, nil} <- DockerClient.container_start(container_id),
          :ok <- healthcheck(port) do
+      {:ok, container_id}
+    end
+  end
+
+  @spec handle_app_redeploy(String.t(), App.Redeploy.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_redeploy(correlation_id, payload) do
+    with {:ok, port} <- Talon.App.PortManager.allocate() do
+      AppProcess.redeploy(correlation_id, payload, port)
+      {:ok, nil}
+    end
+  end
+
+  @spec handle_start_app_redeploy(integer(), App.Create.t(), AppProcess.State.t()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  def handle_start_app_redeploy(port, app, state) do
+    with {:ok, container_id} <- handle_start_app_deploy(port, app),
+         {:ok, nil} <- DockerClient.container_delete(state.container_id),
+         :ok <-
+           Talon.App.PortManager.release(state.container_port) do
       {:ok, container_id}
     end
   end

@@ -116,6 +116,21 @@ defmodule Talon.Infra.Docker do
     end
   end
 
+  @spec container_update(String.t(), String.t(), any()) :: {:ok, nil} | {:error, String.t()}
+  def container_update(reference, field, value) do
+    data = case field do
+      "memory" -> %Model.ContainerUpdateRequest{ Memory: trunc(value * 1024 * 1024) }
+      "cpu" -> %Model.ContainerUpdateRequest{ NanoCpus: trunc(value * 1_000_000_000) }
+      _ -> %Model.ContainerUpdateRequest {}
+    end
+
+    case Container.container_update(get_connection(), reference, data) do
+      {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
+      {:ok, _response} -> {:ok, nil}
+      {:error, reason} -> {:error, "Unexpected error ocurred during container update: #{inspect(reason)}"}
+    end
+  end
+
   @spec image_build(String.t(), String.t()) :: {:ok, nil} | {:error, String.t()}
   def image_build(name, tag) do
     {:ok, tar_binary} = File.read("#{get_base_path()}/#{name}.tar")

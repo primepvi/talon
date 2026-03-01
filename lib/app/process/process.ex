@@ -28,16 +28,23 @@ defmodule Talon.App.Process do
     GenServer.cast(id_tuple, :start)
   end
 
-  @spec deploy(String.t(), App.Deploy.t(), String.t()) :: :ok
+  @spec deploy(String.t(), App.Deploy.t(), integer()) :: :ok
   def deploy(correlation_id, payload, port) do
     id_tuple = via_tuple(payload.app_id)
     GenServer.cast(id_tuple, {:deploy, correlation_id, payload, port})
   end
 
-  @spec inspect(String.t()) :: {:reply, ProcessState.t(), ProcessState.t()}
+  @spec redeploy(String.t(), App.Redeploy.t(), integer()) :: :ok
+  def redeploy(correlation_id, payload, port) do
+    id_tuple = via_tuple(payload.app_id)
+    GenServer.cast(id_tuple, {:redeploy, correlation_id, payload, port})
+  end
+
+  @spec inspect(String.t()) :: ProcessState.t()
   def inspect(id) do
     id_tuple = via_tuple(id)
-    GenServer.call(id_tuple, :inspect)
+    {:reply, state, _state} = GenServer.call(id_tuple, :inspect)
+    state
   end
 
   @impl true
@@ -56,7 +63,13 @@ defmodule Talon.App.Process do
           {:ok, container_id} ->
             GenServer.cast(
               id_tuple,
-              {:finalize_deploy, %{container_id: container_id, status: :running}}
+              {:finalize_deploy,
+               %{
+                 container_id: container_id,
+                 container_port: port,
+                 deploy_id: payload.deploy_id,
+                 status: :running
+               }}
             )
 
             Connection.send_app_state(correlation_id, %App.State{
@@ -66,7 +79,66 @@ defmodule Talon.App.Process do
             })
 
           {:error, reason} ->
-            GenServer.cast(id_tuple, {:finalize_deploy, %{status: :failed}})
+            GenServer.cast(
+              id_tuple,
+              {:finalize_deploy, %{deploy_id: payload.deploy_id, status: :failed}}
+            )
+
+            Connection.send_app_state(correlation_id, %App.State{
+              app_id: payload.app_id,
+              deploy_id: payload.deploy_id,
+              state: :failed,
+              reason: reason
+            })
+        end
+      end)
+
+    {:noreply, %{state | deploy_id: payload.deploy_id, status: :deploying}}
+  end
+
+  @impl true
+  def handle_cast({:redeploy, correlation_id, payload, port}, state) do
+    id_tuple = via_tuple(payload.app_id)
+
+    updated_app =
+      Enum.reduce(payload.changes, state.app, fn change, acc ->
+        Map.replace(acc, change, Map.get(payload, change))
+      end)
+
+    previous_state = %ProcessState{
+      app: state.app,
+      deploy_id: state.deploy_id,
+      container_id: state.container_id,
+      container_port: state.container_port,
+      status: :running
+    }
+
+    {:ok, _task_pid} =
+      Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
+        case Engine.handle_start_app_redeploy(port, updated_app, state) do
+          {:ok, container_id} ->
+            GenServer.cast(
+              id_tuple,
+              {:finalize_deploy,
+               %{
+                 container_id: container_id,
+                 container_port: port,
+                 deploy_id: payload.deploy_id,
+                 status: :running
+               }}
+            )
+
+            Connection.send_app_state(correlation_id, %App.State{
+              app_id: payload.app_id,
+              deploy_id: payload.deploy_id,
+              state: :running
+            })
+
+          {:error, reason} ->
+            GenServer.cast(
+              id_tuple,
+              {:finalize_deploy, previous_state}
+            )
 
             Connection.send_app_state(correlation_id, %App.State{
               app_id: payload.app_id,
