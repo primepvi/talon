@@ -1,7 +1,6 @@
 defmodule Talon.App.Process do
   use GenServer
 
-  alias Talon.Infra.Docker, as: DockerClient
   alias Talon.App.Process.State, as: ProcessState
   alias Talon.Payloads.App
   alias Talon.App.Engine
@@ -22,12 +21,6 @@ defmodule Talon.App.Process do
     {:ok, %{state | status: :empty}}
   end
 
-  @spec start(String.t()) :: :ok
-  def start(id) do
-    id_tuple = via_tuple(id)
-    GenServer.cast(id_tuple, :start)
-  end
-
   @spec deploy(String.t(), App.Deploy.t(), integer()) :: :ok
   def deploy(correlation_id, payload, port) do
     id_tuple = via_tuple(payload.app_id)
@@ -40,17 +33,17 @@ defmodule Talon.App.Process do
     GenServer.cast(id_tuple, {:redeploy, correlation_id, payload, port})
   end
 
+  @spec action(String.t(), struct(), atom()) :: :ok
+  def action(correlation_id, payload, action) do
+    id_tuple = via_tuple(payload.app_id)
+    GenServer.cast(id_tuple, {:action, correlation_id, payload, action})
+  end
+
   @spec inspect(String.t()) :: ProcessState.t()
   def inspect(id) do
     id_tuple = via_tuple(id)
     {:reply, state, _state} = GenServer.call(id_tuple, :inspect)
     state
-  end
-
-  @impl true
-  def handle_cast(:start, %ProcessState{container_id: id} = state) do
-    DockerClient.container_start(id)
-    {:noreply, %{state | status: :running}}
   end
 
   @impl true
@@ -94,6 +87,31 @@ defmodule Talon.App.Process do
       end)
 
     {:noreply, %{state | deploy_id: payload.deploy_id, status: :deploying}}
+  end
+
+  @impl true
+  def handle_cast({:action, correlation_id, payload, action}, state) do
+    {:ok, _task_pid} =
+      Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
+        case Engine.handle_start_app_action(action, state.container_id) do
+          {:ok, status} ->
+            Connection.send_app_state(correlation_id, %App.State{
+              app_id: payload.app_id,
+              deploy_id: nil,
+              state: status
+            })
+
+          {:error, reason} ->
+            Connection.send_app_state(correlation_id, %App.State{
+              app_id: payload.app_id,
+              deploy_id: nil,
+              state: :failed,
+              reason: reason
+            })
+        end
+      end)
+
+      {:noreply, state}
   end
 
   @impl true

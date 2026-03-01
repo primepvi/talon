@@ -85,6 +85,31 @@ defmodule Talon.App.Engine do
     end
   end
 
+  @spec handle_app_action(atom(), String.t(), struct()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_action(action, correlation_id, payload) do
+    with {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id) do
+      AppProcess.action(correlation_id, payload, action)
+    end
+  end
+
+  @spec handle_start_app_action(atom(), String.t()) :: {:ok, AppProcess.State.status()} | {:error, String.t()}
+  def handle_start_app_action(action, container_id) do
+    result = case action do
+      :start -> DockerClient.container_start(container_id)
+      :stop -> DockerClient.container_stop(container_id)
+      :destroy -> DockerClient.container_delete(container_id)
+      _ -> {:error, "Invalid container action has provided."}
+    end
+
+    with {:ok, nil} <- result do
+      case action do
+        :start -> {:ok, :running}
+        :stop -> {:ok, :idle}
+        :destroy -> {:ok, :destroyed}
+      end
+    end
+  end
+
   defp healthcheck(port, timeout \\ 30_000, interval \\ 1_000) do
     deadline = System.monotonic_time(:millisecond) + timeout
     exec_healthcheck(port, deadline, interval)

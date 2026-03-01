@@ -39,6 +39,44 @@ defmodule Talon.Panel.MessageHandler do
     end
   end
 
+  def dispatch(%{"type" => "app.start"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
+         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
+         {:ok, nil} <- Engine.handle_app_action(:start, correlation_id, payload) do
+          ack(correlation_id, :accepted)
+    else
+      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+    end
+  end
+
+
+  def dispatch(%{"type" => "app.stop"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
+         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
+         {:ok, nil} <- Engine.handle_app_action(:stop, correlation_id, payload) do
+          ack(correlation_id, :accepted)
+    else
+      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+    end
+  end
+
+
+  def dispatch(%{"type" => "app.destroy"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
+         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
+         {:ok, nil} <- Engine.handle_app_action(:destroy, correlation_id, payload) do
+          ack(correlation_id, :accepted)
+    else
+      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+    end
+  end
+
   @spec ack(String.t(), :accepted) :: :ok
   defp ack(correlation_id, :accepted) do
     Connection.send_message(%{
