@@ -24,7 +24,6 @@ defmodule Talon.Payloads.App.Create do
       validate_atom(payload, "strategy", [:dockerfile, :registry]),
       validate_map(payload, "resources"),
       required(resources, ["cpu", "memory"]),
-      validate_float(resources, "cpu"),
       validate_positive(resources, "cpu"),
       validate_integer(resources, "memory"),
       validate_positive(resources, "memory"),
@@ -60,8 +59,8 @@ defmodule Talon.Payloads.App.Create do
            resources: map["resources"],
            env: map["env"] || %{},
            repo: map["repo"],
-           branch: map["branch"],
-           commit: map["commit"]
+           branch: map["branch"] || "main",
+           commit: map["commit"] || "HEAD"
          }}
 
       error ->

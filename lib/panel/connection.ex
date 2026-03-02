@@ -18,9 +18,15 @@ defmodule Talon.Panel.Connection do
     )
   end
 
-  @spec send_message(Message.t()) :: :ok
+  @spec send_message(Message.t(any())) :: :ok
   def send_message(message) do
-    WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(message)}})
+    data = %{
+      type: message.type,
+      correlation_id: message.correlation_id,
+      payload: Map.from_struct(message.payload)
+    }
+
+    WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(data)}})
   end
 
   @spec send_app_state(String.t(), App.State.t()) :: :ok
@@ -33,7 +39,7 @@ defmodule Talon.Panel.Connection do
   end
 
   defp send_node_register() do
-     %Message{
+    %Message{
       type: "node.register",
       correlation_id: UUID.uuid4(),
       payload: %Node.Register{
@@ -58,8 +64,9 @@ defmodule Talon.Panel.Connection do
   @impl true
   def handle_frame({:text, msg}, state) do
     msg
-    |> Jason.decode!
-    |> MessageHandler.dispatch
+    |> Jason.decode!()
+    |> MessageHandler.dispatch()
+
 
     {:ok, state}
   end

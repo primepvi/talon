@@ -89,6 +89,7 @@ defmodule Talon.App.Engine do
   def handle_app_action(action, correlation_id, payload) do
     with {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id) do
       AppProcess.action(correlation_id, payload, action)
+      {:ok, nil}
     end
   end
 

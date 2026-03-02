@@ -2,8 +2,9 @@ defmodule Talon.Panel.MessageHandler do
   alias Talon.Panel.Connection
   alias Talon.Payloads
   alias Talon.App.Engine
+  alias Talon.Panel.Message
 
-  @spec dispatch(Talon.Panel.Message.t()) :: :ok
+  @spec dispatch(Message.t()) :: :ok
   def dispatch(%{"type" => "app.create"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
@@ -58,9 +59,10 @@ defmodule Talon.Panel.MessageHandler do
     with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
          {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
          {:ok, nil} <- Engine.handle_app_action(:stop, correlation_id, payload) do
-          ack(correlation_id, :accepted)
+         ack(correlation_id, :accepted)
     else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+      {:error, reason} ->
+        ack(correlation_id, {:rejected, reason})
     end
   end
 
@@ -79,19 +81,19 @@ defmodule Talon.Panel.MessageHandler do
 
   @spec ack(String.t(), :accepted) :: :ok
   defp ack(correlation_id, :accepted) do
-    Connection.send_message(%{
+    Connection.send_message(%Message{
       type: "ack",
       correlation_id: correlation_id,
-      payload: %{status: "accepted"}
+      payload: %Payloads.Ack{status: "accepted"}
     })
   end
 
   @spec ack(String.t(), {:rejected, String.t()}) :: :ok
   defp ack(correlation_id, {:rejected, reason}) do
-    Connection.send_message(%{
+    Connection.send_message(%Message{
       type: "ack",
       correlation_id: correlation_id,
-      payload: %{status: "rejected", reason: reason}
+      payload: %Payloads.Ack{status: "rejected", reason: reason}
     })
   end
 end

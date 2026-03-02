@@ -91,6 +91,7 @@ defmodule Talon.App.Process do
 
   @impl true
   def handle_cast({:action, correlation_id, payload, action}, state) do
+
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
         case Engine.handle_start_app_action(action, state.container_id) do

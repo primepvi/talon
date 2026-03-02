@@ -26,7 +26,6 @@ defmodule Talon.Payloads.App.Redeploy do
       validate_string(payload, "image"),
       validate_atom(payload, "strategy", [:dockerfile, :registry]),
       validate_map(payload, "resources"),
-      validate_float(resources, "cpu"),
       validate_positive(resources, "cpu"),
       validate_integer(resources, "memory"),
       validate_positive(resources, "memory"),

@@ -38,7 +38,7 @@ defmodule Talon.Infra.Docker do
           {:ok, String.t()} | {:error, String.t()}
   def container_create(config) do
     body = %Model.ContainerCreateRequest{
-      Image: config.image,
+      Image: "#{config.image}:#{config.tag}",
       HostConfig: %Model.HostConfig{
         Memory: trunc(config.memory * 1024 * 1024),
         NanoCpus: trunc(config.cpu * 1_000_000_000),
@@ -46,7 +46,7 @@ defmodule Talon.Infra.Docker do
           "#{config.port}/tcp" => [%{"HostIp" => "0.0.0.0", "HostPort" => "#{config.port}"}]
         }
       },
-      Env: config.env ++ "PORT=#{config.port}",
+      Env: config.env,
       Labels: %{
         "talon.managed" => "true",
         "talon.app" => config.name
@@ -93,8 +93,9 @@ defmodule Talon.Infra.Docker do
   def container_start(reference) do
     case Container.container_start(get_connection(), reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, nil} -> {:ok, nil}
-      _ -> {:error, "Unexpected error ocurred during container start."}
+      {:ok, _response} -> {:ok, nil}
+      _ ->
+        {:error, "Unexpected error ocurred during container start."}
     end
   end
 
@@ -102,7 +103,7 @@ defmodule Talon.Infra.Docker do
   def container_stop(reference) do
     case Container.container_stop(get_connection(), reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, nil} -> {:ok, nil}
+      {:ok, _response} -> {:ok, nil}
       _ -> {:error, "Unexpected error ocurred during container stop."}
     end
   end
@@ -111,23 +112,29 @@ defmodule Talon.Infra.Docker do
   def container_delete(reference) do
     case Container.container_delete(get_connection(), reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, nil} -> {:ok, nil}
+      {:ok, _response} -> {:ok, nil}
       _ -> {:error, "Unexpected error ocurred during container delete."}
     end
   end
 
   @spec container_update(String.t(), String.t(), any()) :: {:ok, nil} | {:error, String.t()}
   def container_update(reference, field, value) do
-    data = case field do
-      "memory" -> %Model.ContainerUpdateRequest{ Memory: trunc(value * 1024 * 1024) }
-      "cpu" -> %Model.ContainerUpdateRequest{ NanoCpus: trunc(value * 1_000_000_000) }
-      _ -> %Model.ContainerUpdateRequest {}
-    end
+    data =
+      case field do
+        "memory" -> %Model.ContainerUpdateRequest{Memory: trunc(value * 1024 * 1024)}
+        "cpu" -> %Model.ContainerUpdateRequest{NanoCpus: trunc(value * 1_000_000_000)}
+        _ -> %Model.ContainerUpdateRequest{}
+      end
 
     case Container.container_update(get_connection(), reference, data) do
-      {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, _response} -> {:ok, nil}
-      {:error, reason} -> {:error, "Unexpected error ocurred during container update: #{inspect(reason)}"}
+      {:ok, %Model.ErrorResponse{message: reason}} ->
+        {:error, reason}
+
+      {:ok, _response} ->
+        {:ok, nil}
+
+      {:error, reason} ->
+        {:error, "Unexpected error ocurred during container update: #{inspect(reason)}"}
     end
   end
 
@@ -135,7 +142,7 @@ defmodule Talon.Infra.Docker do
   def image_build(name, tag) do
     {:ok, tar_binary} = File.read("#{get_base_path()}/#{name}.tar")
 
-  case Image.image_build(get_connection(),
+    case Image.image_build(get_connection(),
            t: "#{name}:#{tag}",
            body: tar_binary,
            dockerfile: "Dockerfile"

@@ -5,7 +5,7 @@ defmodule Talon.Payloads.App.Destroy do
 
   defp validate_raw(payload) do
     validate(payload, [
-      required(payload, ["app_id"]).
+      required(payload, ["app_id"]),
       validate_string(payload, "app_id")
     ])
   end
@@ -16,9 +16,9 @@ defmodule Talon.Payloads.App.Destroy do
 
   def from_map(map) do
     with {:ok, _map} <- validate_raw(map) do
-      %__MODULE__{
+      {:ok,%__MODULE__{
         app_id: map["app_id"]
-      }
+      }}
     end
   end
 end

@@ -9,6 +9,7 @@ defmodule Talon.Application do
       Talon.App.PortManager,
       Talon.Infra.Docker,
       Talon.Panel.Connection,
+      {Task.Supervisor, name: Talon.TaskSupervisor}
     ]
 
     Supervisor.start_link(children, [strategy: :one_for_one, name: Talon.Supervisor])
