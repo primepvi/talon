@@ -119,10 +119,10 @@ defmodule Talon.App.Process do
   def handle_cast({:redeploy, correlation_id, payload, port}, state) do
     id_tuple = via_tuple(payload.app_id)
 
-    updated_app =
-      Enum.reduce(payload.changes, state.app, fn change, acc ->
-        Map.replace(acc, change, Map.get(payload, change))
-      end)
+
+    updated_app = Enum.reduce(payload.changes, state.app, fn key, acc ->
+      Map.put(acc, String.to_existing_atom(key), Map.get(payload, String.to_existing_atom(key)))
+    end)
 
     previous_state = %ProcessState{
       app: state.app,

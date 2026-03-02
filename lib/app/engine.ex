@@ -78,9 +78,9 @@ defmodule Talon.App.Engine do
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_redeploy(port, app, state) do
     with {:ok, container_id} <- handle_start_app_deploy(port, app),
+         {:ok, nil} <- DockerClient.container_stop(state.container_id),
          {:ok, nil} <- DockerClient.container_delete(state.container_id),
-         :ok <-
-           Talon.App.PortManager.release(state.container_port) do
+         :ok <- Talon.App.PortManager.release(state.container_port) do
       {:ok, container_id}
     end
   end
@@ -93,14 +93,16 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_start_app_action(atom(), String.t()) :: {:ok, AppProcess.State.status()} | {:error, String.t()}
+  @spec handle_start_app_action(atom(), String.t()) ::
+          {:ok, AppProcess.State.status()} | {:error, String.t()}
   def handle_start_app_action(action, container_id) do
-    result = case action do
-      :start -> DockerClient.container_start(container_id)
-      :stop -> DockerClient.container_stop(container_id)
-      :destroy -> DockerClient.container_delete(container_id)
-      _ -> {:error, "Invalid container action has provided."}
-    end
+    result =
+      case action do
+        :start -> DockerClient.container_start(container_id)
+        :stop -> DockerClient.container_stop(container_id)
+        :destroy -> DockerClient.container_delete(container_id)
+        _ -> {:error, "Invalid container action has provided."}
+      end
 
     with {:ok, nil} <- result do
       case action do

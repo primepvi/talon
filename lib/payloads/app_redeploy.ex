@@ -16,7 +16,7 @@ defmodule Talon.Payloads.App.Redeploy do
   ]
 
   defp validate_raw(payload) do
-    resources = payload["resources"]
+    resources = payload["resources"] || %{}
 
     validate(payload, [
       required(payload, ["app_id", "deploy_id", "changes"]),
