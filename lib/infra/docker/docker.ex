@@ -49,7 +49,8 @@ defmodule Talon.Infra.Docker do
       Env: config.env,
       Labels: %{
         "talon.managed" => "true",
-        "talon.app" => config.name
+        "talon.name" => config.name,
+        "talon.id" => config.app_id
       }
     }
 
@@ -57,7 +58,7 @@ defmodule Talon.Infra.Docker do
       image_pull(config.image, config.tag)
     end
 
-    opts = [name: config.name]
+    opts = [name: "#{config.name}_#{config.app_id}"]
 
     case Container.container_create(get_connection(), body, opts) do
       {:ok, %Model.ContainerCreateResponse{Id: container_id}} ->

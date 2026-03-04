@@ -1,7 +1,11 @@
 defmodule Talon.App.Engine do
+  alias Talon.Panel.Connection
   alias Talon.Infra.Docker, as: DockerClient
   alias Talon.Infra.Git, as: GitClient
+
   alias Talon.Payloads.App
+  alias Talon.Payloads.Node
+
   alias Talon.App.Supervisor
   alias Talon.App.Process, as: AppProcess
 
@@ -20,6 +24,54 @@ defmodule Talon.App.Engine do
     end
   end
 
+  @spec handle_node_sync(String.t(), Node.Sync.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_node_sync(correlation_id, payload) do
+    {:ok, _task_pid} =
+      Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
+        ready_apps = []
+
+        Enum.each(payload.apps, fn app ->
+          {container_id, status} =
+            case DockerClient.container_inspect("#{app.name}_#{app.app_id}") do
+              {:ok,
+               %DockerEngineAPI.Model.ContainerInspectResponse{Id: container_id, State: %{Status: status}}} ->
+                {container_id,
+                 case String.downcase(status) do
+                   "created" -> :idle
+                   "restarting" -> :redeploying
+                   "running" -> :running
+                   "removing" -> :deploying
+                   "paused" -> :idle
+                   "exited" -> :failed
+                   "dead" -> :crashed
+                   _ -> :empty
+                 end}
+
+              _ ->
+                {nil, :destroyed}
+            end
+
+          Supervisor.create_process(%AppProcess.State{
+            app: app,
+            container_id: container_id,
+            status: status
+          })
+
+          ready_apps = [%{app_id: app.app_id, status: status} | ready_apps]
+        end)
+
+        Connection.send_message(%Talon.Panel.Message{
+          type: "node.ready",
+          correlation_id: correlation_id,
+          payload: %Talon.Payloads.Node.Ready{
+            apps: ready_apps
+          }
+        })
+      end)
+
+    {:ok, nil}
+  end
+
   @spec handle_start_app_deploy(integer(), App.Create.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_deploy(port, %{strategy: :registry} = app) do
@@ -27,6 +79,7 @@ defmodule Talon.App.Engine do
 
     with {:ok, container_id} <-
            DockerClient.container_create(%DockerClient.ContainerConfig{
+             app_id: app.app_id,
              name: app.name,
              image: image,
              tag: tag,
@@ -49,6 +102,7 @@ defmodule Talon.App.Engine do
          {:ok, nil} <- DockerClient.image_build(app.name, app.commit),
          {:ok, container_id} <-
            DockerClient.container_create(%DockerClient.ContainerConfig{
+             app_id: app.app_id,
              name: app.name,
              image: app.name,
              tag: app.commit,

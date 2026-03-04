@@ -4,7 +4,17 @@ defmodule Talon.Panel.MessageHandler do
   alias Talon.App.Engine
   alias Talon.Panel.Message
 
-  @spec dispatch(Message.t()) :: :ok
+  @spec dispatch(Message.t(map())) :: :ok
+  def dispatch(%{"type" => "node.sync"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    payload = Payloads.Node.Sync.from_map(raw_payload)
+    case Engine.handle_node_sync(correlation_id, payload) do
+      {:ok, nil} -> ack(correlation_id, :accepted)
+      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+    end
+  end
+
   def dispatch(%{"type" => "app.create"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
