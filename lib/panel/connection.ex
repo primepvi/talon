@@ -1,12 +1,13 @@
 defmodule Talon.Panel.Connection do
   use WebSockex
+  require Logger
 
   alias Talon.Panel.Message
   alias Talon.Panel.MessageHandler
   alias Talon.Payloads.App
   alias Talon.Payloads.Node
 
-  # @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
+  @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
   def start_link(_opts \\ []) do
     url = Application.get_env(:talon, :panel_url)
@@ -14,7 +15,8 @@ defmodule Talon.Panel.Connection do
 
     WebSockex.start_link(url, __MODULE__, %{retry_count: 0},
       name: __MODULE__,
-      extra_headers: [{"Authorization", "Bearer #{token}"}]
+      extra_headers: [{"Authorization", "Bearer #{token}"}],
+      handle_initial_conn_failure: true
     )
   end
 
@@ -53,6 +55,8 @@ defmodule Talon.Panel.Connection do
   @impl true
   def handle_connect(_conn, state) do
     send_node_register()
+
+    Logger.info("[talon] connected to panel.")
     {:ok, %{state | retry_count: 0}}
   end
 
@@ -63,7 +67,7 @@ defmodule Talon.Panel.Connection do
 
   @impl true
   def handle_frame({:text, msg}, state) do
-    response = msg
+    msg
     |> Jason.decode!
     |> MessageHandler.dispatch
 
@@ -72,7 +76,19 @@ defmodule Talon.Panel.Connection do
 
   @impl true
   def handle_disconnect(%{reason: reason}, state) do
-    IO.inspect(reason, label: "Disconnected.")
-    {:ok, state}
+    Logger.warning("[talon] disconnected: #{inspect(reason)}")
+
+    interval = @backoff_intervals
+    |> Enum.at(state.retry_count, List.last(@backoff_intervals))
+    |> jitter()
+
+    Logger.info("[talon] reconnecting in #{interval}ms.")
+
+    Process.sleep(interval)
+    {:reconnect, %{state | retry_count: state.retry_count + 1}}
+  end
+
+  defp jitter(interval) do
+    interval + :rand.uniform(div(interval, 2))
   end
 end
