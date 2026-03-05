@@ -28,9 +28,7 @@ defmodule Talon.App.Engine do
   def handle_node_sync(correlation_id, payload) do
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
-        ready_apps = []
-
-        Enum.each(payload.apps, fn app ->
+        ready_apps = Enum.map(payload.apps, fn app ->
           {container_id, status} =
             case DockerClient.container_inspect("#{app.name}_#{app.app_id}") do
               {:ok,
@@ -42,7 +40,7 @@ defmodule Talon.App.Engine do
                    "running" -> :running
                    "removing" -> :deploying
                    "paused" -> :idle
-                   "exited" -> :failed
+                   "exited" -> :idle
                    "dead" -> :crashed
                    _ -> :empty
                  end}
@@ -57,7 +55,7 @@ defmodule Talon.App.Engine do
             status: status
           })
 
-          ready_apps = [%{app_id: app.app_id, status: status} | ready_apps]
+          %{app_id: app.app_id, status: status}
         end)
 
         Connection.send_message(%Talon.Panel.Message{

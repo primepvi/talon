@@ -42,8 +42,7 @@ defmodule Talon.App.Process do
   @spec inspect(String.t()) :: ProcessState.t()
   def inspect(id) do
     id_tuple = via_tuple(id)
-    {:reply, state, _state} = GenServer.call(id_tuple, :inspect)
-    state
+    GenServer.call(id_tuple, :inspect)
   end
 
   @impl true

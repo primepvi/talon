@@ -6,7 +6,7 @@ defmodule Talon.Panel.Connection do
   alias Talon.Payloads.App
   alias Talon.Payloads.Node
 
-  @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
+  # @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
   def start_link(_opts \\ []) do
     url = Application.get_env(:talon, :panel_url)
@@ -63,10 +63,9 @@ defmodule Talon.Panel.Connection do
 
   @impl true
   def handle_frame({:text, msg}, state) do
-    msg
-    |> Jason.decode!()
-    |> MessageHandler.dispatch()
-
+    response = msg
+    |> Jason.decode!
+    |> MessageHandler.dispatch
 
     {:ok, state}
   end

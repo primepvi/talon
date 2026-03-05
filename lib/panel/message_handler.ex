@@ -8,9 +8,10 @@ defmodule Talon.Panel.MessageHandler do
   def dispatch(%{"type" => "node.sync"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
-    payload = Payloads.Node.Sync.from_map(raw_payload)
-    case Engine.handle_node_sync(correlation_id, payload) do
-      {:ok, nil} -> ack(correlation_id, :accepted)
+    with {:ok, payload} <- Payloads.Node.Sync.from_map(raw_payload),
+         {:ok, nil} <- Engine.handle_node_sync(correlation_id, payload) do
+      ack(correlation_id, :accepted)
+    else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
     end
   end
@@ -56,12 +57,11 @@ defmodule Talon.Panel.MessageHandler do
     with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
          {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
          {:ok, nil} <- Engine.handle_app_action(:start, correlation_id, payload) do
-          ack(correlation_id, :accepted)
+      ack(correlation_id, :accepted)
     else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
     end
   end
-
 
   def dispatch(%{"type" => "app.stop"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
@@ -69,13 +69,12 @@ defmodule Talon.Panel.MessageHandler do
     with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
          {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
          {:ok, nil} <- Engine.handle_app_action(:stop, correlation_id, payload) do
-         ack(correlation_id, :accepted)
+      ack(correlation_id, :accepted)
     else
       {:error, reason} ->
         ack(correlation_id, {:rejected, reason})
     end
   end
-
 
   def dispatch(%{"type" => "app.destroy"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
@@ -83,7 +82,7 @@ defmodule Talon.Panel.MessageHandler do
     with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
          {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
          {:ok, nil} <- Engine.handle_app_action(:destroy, correlation_id, payload) do
-          ack(correlation_id, :accepted)
+      ack(correlation_id, :accepted)
     else
       {:error, reason} -> ack(correlation_id, {:rejected, reason})
     end
