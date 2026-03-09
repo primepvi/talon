@@ -4,11 +4,11 @@ defmodule Talon.Payloads.Node.Sync do
   defstruct [:apps]
 
   @type t() :: %__MODULE__{
-          apps: list(App.Create.t())
+          apps: list(App.Deploy.t())
         }
 
   def from_map(map) do
-    apps = Enum.map(map["apps"], &App.Create.from_map/1)
+    apps = Enum.map(map["apps"], &App.Deploy.from_map/1)
 
     with true <-
            Enum.all?(apps, fn app ->

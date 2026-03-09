@@ -93,8 +93,12 @@ defmodule Talon.Infra.Docker do
   @spec container_start(String.t()) :: {:ok, nil} | {:error, String.t()}
   def container_start(reference) do
     case Container.container_start(get_connection(), reference) do
-      {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, _response} -> {:ok, nil}
+      {:ok, %Model.ErrorResponse{message: reason}} ->
+        {:error, reason}
+
+      {:ok, _response} ->
+        {:ok, nil}
+
       _ ->
         {:error, "Unexpected error ocurred during container start."}
     end
@@ -141,15 +145,16 @@ defmodule Talon.Infra.Docker do
 
   @spec image_build(String.t(), String.t()) :: {:ok, nil} | {:error, String.t()}
   def image_build(name, tag) do
-    {:ok, tar_binary} = File.read("#{get_base_path()}/#{name}.tar")
-
-    case Image.image_build(get_connection(),
-           t: "#{name}:#{tag}",
-           body: tar_binary,
-           dockerfile: "Dockerfile"
-         ) do
+    with {:ok, tar_binary} <- File.read("#{get_base_path()}/#{name}.tar"),
+         {:ok, nil} <-
+           Image.image_build(get_connection(),
+             t: "#{name}:#{tag}",
+             body: tar_binary,
+             dockerfile: "Dockerfile"
+           ) do
+      {:ok, nil}
+    else
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, _payload} -> {:ok, nil}
       {:error, reason} -> {:error, "Unexpected error during image build: #{inspect(reason)}"}
     end
   end

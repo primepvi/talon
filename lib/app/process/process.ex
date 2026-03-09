@@ -101,6 +101,10 @@ defmodule Talon.App.Process do
               state: status
             })
 
+            if status == :destroyed do
+              GenServer.stop(self(), :normal)
+            end
+
           {:error, reason} ->
             Connection.send_app_state(correlation_id, %App.State{
               app_id: payload.app_id,

@@ -4,7 +4,7 @@ defmodule Talon.App.Process.State do
   @type status() :: :empty | :idle | :deploying | :redeploying | :running  | :failed | :crashed | :destroyed
 
   @type t() :: %__MODULE__{
-    app: Talon.Payloads.App.Create.t(),
+    app: Talon.Payloads.App.Deploy.t(),
     status: status(),
     container_id: String.t() | nil,
     container_port: integer() | nil,

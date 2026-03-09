@@ -42,7 +42,7 @@ defmodule Talon.Payloads.App.Redeploy do
           changes: list(String.t()),
           name: String.t() | nil,
           image: String.t() | nil,
-          strategy: Talon.Payloads.App.Create.strategy() | nil,
+          strategy: Talon.Payloads.App.Deploy.strategy() | nil,
           resources: %{memory: integer() | nil, cpu: float() | nil} | nil,
           env: map() | nil,
           repo: String.t() | nil,

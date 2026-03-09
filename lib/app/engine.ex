@@ -9,54 +9,43 @@ defmodule Talon.App.Engine do
   alias Talon.App.Supervisor
   alias Talon.App.Process, as: AppProcess
 
-  @spec handle_app_create(App.Create.t()) :: {:ok, pid()} | {:error, String.t()}
-  def handle_app_create(payload) do
-    Supervisor.create_process(%AppProcess.State{
-      app: payload
-    })
-  end
-
-  @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
-  def handle_app_deploy(correlation_id, payload) do
-    with {:ok, port} <- Talon.App.PortManager.allocate() do
-      AppProcess.deploy(correlation_id, payload, port)
-      {:ok, nil}
-    end
-  end
-
   @spec handle_node_sync(String.t(), Node.Sync.t()) :: {:ok, nil} | {:error, String.t()}
   def handle_node_sync(correlation_id, payload) do
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
-        ready_apps = Enum.map(payload.apps, fn app ->
-          {container_id, status} =
-            case DockerClient.container_inspect("#{app.name}_#{app.app_id}") do
-              {:ok,
-               %DockerEngineAPI.Model.ContainerInspectResponse{Id: container_id, State: %{Status: status}}} ->
-                {container_id,
-                 case String.downcase(status) do
-                   "created" -> :idle
-                   "restarting" -> :redeploying
-                   "running" -> :running
-                   "removing" -> :deploying
-                   "paused" -> :idle
-                   "exited" -> :idle
-                   "dead" -> :crashed
-                   _ -> :empty
-                 end}
+        ready_apps =
+          Enum.map(payload.apps, fn app ->
+            {container_id, status} =
+              case DockerClient.container_inspect("#{app.name}_#{app.app_id}") do
+                {:ok,
+                 %DockerEngineAPI.Model.ContainerInspectResponse{
+                   Id: container_id,
+                   State: %{Status: status}
+                 }} ->
+                  {container_id,
+                   case String.downcase(status) do
+                     "created" -> :idle
+                     "restarting" -> :redeploying
+                     "running" -> :running
+                     "removing" -> :deploying
+                     "paused" -> :idle
+                     "exited" -> :idle
+                     "dead" -> :crashed
+                     _ -> :empty
+                   end}
 
-              _ ->
-                {nil, :destroyed}
-            end
+                _ ->
+                  {nil, :destroyed}
+              end
 
-          Supervisor.create_process(%AppProcess.State{
-            app: app,
-            container_id: container_id,
-            status: status
-          })
+            Supervisor.create_process(%AppProcess.State{
+              app: app,
+              container_id: container_id,
+              status: status
+            })
 
-          %{app_id: app.app_id, status: status}
-        end)
+            %{app_id: app.app_id, status: status}
+          end)
 
         Connection.send_message(%Talon.Panel.Message{
           type: "node.ready",
@@ -70,7 +59,19 @@ defmodule Talon.App.Engine do
     {:ok, nil}
   end
 
-  @spec handle_start_app_deploy(integer(), App.Create.t()) ::
+    @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_deploy(correlation_id, payload) do
+    with {:ok, _pid} <-
+           Supervisor.create_process(%AppProcess.State{
+             app: payload
+           }),
+         {:ok, port} <- Talon.App.PortManager.allocate() do
+      AppProcess.deploy(correlation_id, payload, port)
+      {:ok, nil}
+    end
+  end
+
+  @spec handle_start_app_deploy(integer(), App.Deploy.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_deploy(port, %{strategy: :registry} = app) do
     [image, tag] = String.split(app.image, ":")
@@ -126,7 +127,7 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_start_app_redeploy(integer(), App.Create.t(), AppProcess.State.t()) ::
+  @spec handle_start_app_redeploy(integer(), App.Deploy.t(), AppProcess.State.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_redeploy(port, app, state) do
     with {:ok, container_id} <- handle_start_app_deploy(port, app),

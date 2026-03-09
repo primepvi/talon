@@ -28,6 +28,7 @@ defmodule Talon.Infra.Git do
 
       {:error, reason} ->
         {:error, "Unexpected error during clone tar generation: #{inspect(reason)}"}
+
       _ -> {:error, "Unexpected error ocurred during git clone tar generation."}
     end
   end
