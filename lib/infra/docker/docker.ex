@@ -96,7 +96,7 @@ defmodule Talon.Infra.Docker do
       {:ok, %Model.ErrorResponse{message: reason}} ->
         {:error, reason}
 
-      {:ok, _response} ->
+      {:ok, nil} ->
         {:ok, nil}
 
       _ ->
