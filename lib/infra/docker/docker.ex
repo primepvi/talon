@@ -163,7 +163,7 @@ defmodule Talon.Infra.Docker do
   def image_delete(name, tag) do
     case Image.image_delete(get_connection(), "#{name}:#{tag}", force: true) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, nil} -> {:ok, nil}
+      {:ok, _response} -> {:ok, nil}
       _ -> {:error, "Unexpected error during image delete."}
     end
   end
