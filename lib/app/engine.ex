@@ -38,11 +38,14 @@ defmodule Talon.App.Engine do
                   {nil, :destroyed}
               end
 
-            Supervisor.create_process(%AppProcess.State{
-              app: app,
-              container_id: container_id,
-              status: status
-            })
+            case Supervisor.get_process(app.app_id) do
+              {:error, _reason} ->
+                Supervisor.create_process(%AppProcess.State{
+                  app: app,
+                  container_id: container_id,
+                  status: status
+                })
+            end
 
             %{app_id: app.app_id, status: status}
           end)
@@ -59,7 +62,7 @@ defmodule Talon.App.Engine do
     {:ok, nil}
   end
 
-    @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
+  @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
   def handle_app_deploy(correlation_id, payload) do
     with {:ok, _pid} <-
            Supervisor.create_process(%AppProcess.State{
