@@ -108,7 +108,7 @@ defmodule Talon.Infra.Docker do
   def container_stop(reference) do
     case Container.container_stop(get_connection(), reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, _response} -> {:ok, nil}
+      {:ok, nil} -> {:ok, nil}
       _ -> {:error, "Unexpected error ocurred during container stop."}
     end
   end
@@ -117,7 +117,7 @@ defmodule Talon.Infra.Docker do
   def container_delete(reference) do
     case Container.container_delete(get_connection(), reference) do
       {:ok, %Model.ErrorResponse{message: reason}} -> {:error, reason}
-      {:ok, _response} -> {:ok, nil}
+      {:ok, nil} -> {:ok, nil}
       _ -> {:error, "Unexpected error ocurred during container delete."}
     end
   end
