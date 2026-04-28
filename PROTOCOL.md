@@ -69,7 +69,12 @@ The envelope for all protocol communication.
 {
   "id": "string",
   "app_id": "string",
-  "buildpack": "string",
+  "buildpack": {
+    "name": "string",
+    "arguments": [
+      { "name": "string", "value": "param-expected-type" }
+    ], 
+  },
   "branch": "string",
   "commit": "string",
   "created_at": "ISO8601 timestamp"
@@ -84,8 +89,8 @@ The envelope for all protocol communication.
 {
   "name": "string",
   "image": "string",
-  "options": [
-    { "name": "string", "required": "boolean" }
+  "params": [
+    { "name": "string", "required": "boolean", "default?": "param-expected-type" }
   ]
 }
 ```
