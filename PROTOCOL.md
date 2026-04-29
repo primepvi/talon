@@ -314,7 +314,7 @@ Sent in response to every received message. Echoes the `correlation_id` of the m
   "type": "ack",
   "correlation_id": "uuid-1",
   "payload": {
-    "status": "ok | error",
+    "error": "boolean",
     "reason": "string | null"
   }
 }

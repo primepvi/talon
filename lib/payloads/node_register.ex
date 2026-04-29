@@ -1,7 +1,10 @@
 defmodule Talon.Payloads.Node.Register do
-  defstruct [:node_id, :version]
+  use Talon.Schema
 
-  @type t() :: %__MODULE__{
+  field(:node_id, :string, required: true)
+  field(:version, :string, required: true)
+
+  @type t() :: %{
     node_id: String.t(),
     version: String.t()
   }

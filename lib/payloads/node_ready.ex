@@ -1,7 +1,17 @@
 defmodule Talon.Payloads.Node.Ready do
-  defstruct [:apps]
+  use Talon.Schema
 
-  @type t() :: %__MODULE__{
-          apps: list(%{app_id: String.t(), status: atom()})
-        }
+  defmodule App do
+    use Talon.Schema
+
+    field(:id, :string, required: true)
+    field(:status, :string, required: true)
+
+    @type t() :: %{
+            id: String.t(),
+            status: String.t()
+          }
+  end
+
+  field(:apps, :list, of: :schema, schema: App, required: true)
 end

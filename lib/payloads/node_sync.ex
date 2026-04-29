@@ -1,31 +1,21 @@
 defmodule Talon.Payloads.Node.Sync do
-  alias Talon.Payloads.App
+  use Talon.Schema
 
-  defstruct [:apps]
+  defmodule Item do
+    use Talon.Schema
 
-  @type t() :: %__MODULE__{
-          apps: list(App.Deploy.t())
-        }
+    field(:app, :schema, schema: Talon.Models.App, required: true)
+    field(:deploy, :schema, schema: Talon.Models.Deploy)
 
-  def from_map(map) do
-    apps = Enum.map(map["apps"], &App.Deploy.from_map/1)
-
-    with true <-
-           Enum.all?(apps, fn app ->
-             {status, _value} = app
-             status == :ok
-           end),
-         apps <-
-           Enum.map(apps, fn app ->
-             {_, value} = app
-             value
-           end) do
-      {:ok,
-       %__MODULE__{
-         apps: apps
-       }}
-    else
-      _ -> {:error, "Invalid node.sync payload has provided."}
-    end
+    @type t() :: %{
+            app: Talon.Models.App.t(),
+            deploy: Talon.Models.Deploy.t() | nil
+          }
   end
+
+  field(:items, :list, of: :schema, schema: Item, required: true)
+
+  @type t() :: %{
+          items: list(Item.t())
+        }
 end
