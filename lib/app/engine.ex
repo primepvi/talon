@@ -3,13 +3,10 @@ defmodule Talon.App.Engine do
   alias Talon.Infra.Docker, as: DockerClient
   alias Talon.Infra.Git, as: GitClient
 
-  alias Talon.Payloads.App
-  alias Talon.Payloads.Node
+  alias Talon.Payloads
+  alias Talon.App
 
-  alias Talon.App.Supervisor
-  alias Talon.App.Process, as: AppProcess
-
-  @spec handle_node_sync(String.t(), Node.Sync.t()) :: {:ok, nil} | {:error, String.t()}
+  @spec handle_node_sync(String.t(), Payloads.Node.Sync.t()) :: {:ok, nil} | {:error, String.t()}
   def handle_node_sync(correlation_id, payload) do
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
@@ -24,36 +21,37 @@ defmodule Talon.App.Engine do
                  }} ->
                   {container_id,
                    case String.downcase(status) do
-                     "created" -> :idle
-                     "restarting" -> :redeploying
+                     "created" -> :stopped
+                     "restarting" -> :starting
                      "running" -> :running
-                     "removing" -> :deploying
-                     "paused" -> :idle
-                     "exited" -> :idle
-                     "dead" -> :crashed
-                     _ -> :empty
+                     "removing" -> :stopping
+                     "paused" -> :stopped
+                     "exited" -> :stopped
+                     "dead" -> :error
+                     _ -> :unknown
                    end}
 
                 _ ->
-                  {nil, :destroyed}
+                  {nil, :unknown}
               end
 
-            case Supervisor.get_process(app.app_id) do
+            case App.Supervisor.get_process(app.app_id) do
               {:error, _reason} ->
-                Supervisor.create_process(%AppProcess.State{
+                App.Supervisor.create_process(%App.Process.State{
                   app: app,
                   container_id: container_id,
-                  status: status
+                  status: status,
+                  deploy: payload.deploy
                 })
             end
 
-            %{app_id: app.app_id, status: status}
+            %{id: app.app_id, status: status}
           end)
 
-        Connection.send_message(%Talon.Panel.Message{
+        Connection.send_message(%{
           type: "node.ready",
           correlation_id: correlation_id,
-          payload: %Talon.Payloads.Node.Ready{
+          payload: %{
             apps: ready_apps
           }
         })
@@ -62,19 +60,17 @@ defmodule Talon.App.Engine do
     {:ok, nil}
   end
 
-  @spec handle_app_deploy(String.t(), App.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
-  def handle_app_deploy(correlation_id, payload) do
+  @spec handle_app_create(String.t(), Models.App.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_create(_correlation_id, payload) do
     with {:ok, _pid} <-
-           Supervisor.create_process(%AppProcess.State{
+           App.Supervisor.create_process(%App.Process.State{
              app: payload
-           }),
-         {:ok, port} <- Talon.App.PortManager.allocate() do
-      AppProcess.deploy(correlation_id, payload, port)
+           }) do
       {:ok, nil}
     end
   end
 
-  @spec handle_start_app_deploy(integer(), App.Deploy.t()) ::
+  @spec handle_start_app_deploy(integer(), Payloads.App.Deploy.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_deploy(port, %{strategy: :registry} = app) do
     [image, tag] = String.split(app.image, ":")
@@ -122,17 +118,17 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_app_redeploy(String.t(), App.Redeploy.t()) :: {:ok, nil} | {:error, String.t()}
-  def handle_app_redeploy(correlation_id, payload) do
+  @spec handle_app_update(String.t(), Payloads.App.Update.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_update(correlation_id, payload) do
     with {:ok, port} <- Talon.App.PortManager.allocate() do
-      AppProcess.redeploy(correlation_id, payload, port)
+      App.Process.update(correlation_id, payload, port)
       {:ok, nil}
     end
   end
 
-  @spec handle_start_app_redeploy(integer(), App.Deploy.t(), AppProcess.State.t()) ::
+  @spec handle_start_app_update(integer(), Payloads.App.Deploy.t(), App.Process.State.t()) ::
           {:ok, String.t()} | {:error, String.t()}
-  def handle_start_app_redeploy(port, app, state) do
+  def handle_start_app_update(port, app, state) do
     with {:ok, container_id} <- handle_start_app_deploy(port, app),
          {:ok, nil} <- DockerClient.container_stop(state.container_id),
          {:ok, nil} <- DockerClient.container_delete(state.container_id),
@@ -141,16 +137,16 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_app_action(atom(), String.t(), struct()) :: {:ok, nil} | {:error, String.t()}
+  @spec handle_app_action(atom(), String.t(), Payloads.App.Action.t()) :: {:ok, nil} | {:error, String.t()}
   def handle_app_action(action, correlation_id, payload) do
     with {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id) do
-      AppProcess.action(correlation_id, payload, action)
+      App.Process.action(correlation_id, payload, action)
       {:ok, nil}
     end
   end
 
   @spec handle_start_app_action(atom(), String.t()) ::
-          {:ok, AppProcess.State.status()} | {:error, String.t()}
+          {:ok, Models.App.status()} | {:error, String.t()}
   def handle_start_app_action(action, container_id) do
     result =
       case action do
@@ -163,8 +159,8 @@ defmodule Talon.App.Engine do
     with {:ok, nil} <- result do
       case action do
         :start -> {:ok, :running}
-        :stop -> {:ok, :idle}
-        :destroy -> {:ok, :destroyed}
+        :stop -> {:ok, :stopped}
+        :destroy -> {:ok, :unknown}
       end
     end
   end

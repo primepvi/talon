@@ -13,9 +13,11 @@ defmodule Talon.Payloads.Node.Sync do
           }
   end
 
+  field(:buildpacks, :list, of: :schema, schema: Talon.Models.Buildpack, required: true)
   field(:items, :list, of: :schema, schema: Item, required: true)
 
   @type t() :: %{
+          buildpacks: list(Talon.Models.Buildpack.t()),
           items: list(Item.t())
         }
 end

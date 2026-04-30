@@ -2,10 +2,9 @@ defmodule Talon.Panel.Connection do
   use WebSockex
   require Logger
 
-  alias Talon.Panel.Message
   alias Talon.Panel.MessageHandler
-  alias Talon.Payloads.App
-  alias Talon.Payloads.Node
+  alias Talon.Payloads
+  alias Talon.Models
 
   @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]
 
@@ -20,20 +19,15 @@ defmodule Talon.Panel.Connection do
     )
   end
 
-  @spec send_message(Message.t(any())) :: :ok
+  @spec send_message(Models.Message.t(map())) :: :ok
   def send_message(message) do
-    data = %{
-      type: message.type,
-      correlation_id: message.correlation_id,
-      payload: Map.from_struct(message.payload)
-    }
-
-    WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(data)}})
+    {:ok, message} = Models.Message.validate(message)
+    WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(message)}})
   end
 
-  @spec send_app_state(String.t(), App.State.t()) :: :ok
+  @spec send_app_state(String.t(), Models.AppState.t()) :: :ok
   def send_app_state(correlation_id, payload) do
-    send_message(%Message{
+    send_message(%{
       type: "app.state",
       correlation_id: correlation_id,
       payload: payload
@@ -41,12 +35,12 @@ defmodule Talon.Panel.Connection do
   end
 
   defp send_node_register() do
-    %Message{
+    %{
       type: "node.register",
       correlation_id: UUID.uuid4(),
-      payload: %Node.Register{
+      payload: %{
         node_id: Application.get_env(:talon, :node_id),
-        version: "v0.1"
+        version: Application.get_env(:talon, :node_version)
       }
     }
     |> send_message
@@ -68,8 +62,8 @@ defmodule Talon.Panel.Connection do
   @impl true
   def handle_frame({:text, msg}, state) do
     msg
-    |> Jason.decode!
-    |> MessageHandler.dispatch
+    |> Jason.decode!()
+    |> MessageHandler.dispatch()
 
     {:ok, state}
   end
@@ -78,9 +72,10 @@ defmodule Talon.Panel.Connection do
   def handle_disconnect(%{reason: reason}, state) do
     Logger.warning("[talon] disconnected: #{inspect(reason)}")
 
-    interval = @backoff_intervals
-    |> Enum.at(state.retry_count, List.last(@backoff_intervals))
-    |> jitter()
+    interval =
+      @backoff_intervals
+      |> Enum.at(state.retry_count, List.last(@backoff_intervals))
+      |> jitter()
 
     Logger.info("[talon] reconnecting in #{interval}ms.")
 

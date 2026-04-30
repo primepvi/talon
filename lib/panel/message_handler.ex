@@ -1,97 +1,73 @@
 defmodule Talon.Panel.MessageHandler do
+  alias Talon.App.Engine
   alias Talon.Panel.Connection
   alias Talon.Payloads
-  alias Talon.App.Engine
-  alias Talon.Panel.Message
+  alias Talon.Models
 
-  @spec dispatch(Message.t(map())) :: :ok
+  @spec dispatch(Models.Message.t(map())) :: :ok
   def dispatch(%{"type" => "node.sync"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
-    with {:ok, payload} <- Payloads.Node.Sync.from_map(raw_payload),
+    with {:ok, payload} <- Payloads.Node.Sync.validate(raw_payload),
          {:ok, nil} <- Engine.handle_node_sync(correlation_id, payload) do
-      ack(correlation_id, :accepted)
+      ack(correlation_id, :ok)
     else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+      {:error, reason} -> ack(correlation_id, {:error, reason})
+    end
+  end
+
+  def dispatch(%{"type" => "app.create"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    with {:ok, payload} <- Models.App.validate(raw_payload),
+         {:ok, nil} <- Engine.handle_app_create(correlation_id, payload) do
+      ack(correlation_id, :ok)
+    else
+      {:error, reason} -> ack(correlation_id, {:error, reason})
+    end
+  end
+
+  def dispatch(%{"type" => "app.update"} = message) do
+    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+
+    with {:ok, payload} <- Payloads.App.Update.validate(raw_payload),
+         {:ok, nil} <- Engine.handle_app_update(correlation_id, payload) do
+      ack(correlation_id, :ok)
+    else
+      {:error, reason} -> ack(correlation_id, {:error, reason})
     end
   end
 
   def dispatch(%{"type" => "app.deploy"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
-    with {:ok, payload} <- Payloads.App.Deploy.from_map(raw_payload),
-         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
+    with {:ok, payload} <- Models.App.Deploy.validate(raw_payload),
          {:ok, nil} <- Engine.handle_app_deploy(correlation_id, payload) do
-      ack(correlation_id, :accepted)
+      ack(correlation_id, :ok)
     else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
+      {:error, reason} -> ack(correlation_id, {:error, reason})
     end
   end
 
-  def dispatch(%{"type" => "app.redeploy"} = message) do
-    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
+  @spec ack(String.t(), :ok) :: :ok
+  defp ack(correlation_id, :ok) do
+    {:ok, payload} = Payloads.Ack.validate(%{error: false})
 
-    with {:ok, payload} <- Payloads.App.Redeploy.from_map(raw_payload),
-         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
-         {:ok, nil} <- Engine.handle_app_redeploy(correlation_id, payload) do
-      ack(correlation_id, :accepted)
-    else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
-    end
-  end
-
-  def dispatch(%{"type" => "app.start"} = message) do
-    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
-
-    with {:ok, payload} <- Payloads.App.Start.from_map(raw_payload),
-         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
-         {:ok, nil} <- Engine.handle_app_action(:start, correlation_id, payload) do
-      ack(correlation_id, :accepted)
-    else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
-    end
-  end
-
-  def dispatch(%{"type" => "app.stop"} = message) do
-    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
-
-    with {:ok, payload} <- Payloads.App.Stop.from_map(raw_payload),
-         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
-         {:ok, nil} <- Engine.handle_app_action(:stop, correlation_id, payload) do
-      ack(correlation_id, :accepted)
-    else
-      {:error, reason} ->
-        ack(correlation_id, {:rejected, reason})
-    end
-  end
-
-  def dispatch(%{"type" => "app.destroy"} = message) do
-    %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
-
-    with {:ok, payload} <- Payloads.App.Destroy.from_map(raw_payload),
-         {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id),
-         {:ok, nil} <- Engine.handle_app_action(:destroy, correlation_id, payload) do
-      ack(correlation_id, :accepted)
-    else
-      {:error, reason} -> ack(correlation_id, {:rejected, reason})
-    end
-  end
-
-  @spec ack(String.t(), :accepted) :: :ok
-  defp ack(correlation_id, :accepted) do
-    Connection.send_message(%Message{
+    Connection.send_message(%{
       type: "ack",
       correlation_id: correlation_id,
-      payload: %Payloads.Ack{status: "accepted"}
+      payload: payload
     })
   end
 
-  @spec ack(String.t(), {:rejected, String.t()}) :: :ok
-  defp ack(correlation_id, {:rejected, reason}) do
-    Connection.send_message(%Message{
+  @spec ack(String.t(), {:error, String.t()}) :: :ok
+  defp ack(correlation_id, {:error, reason}) do
+    {:ok, payload} = Payloads.Ack.validate(%{error: true, reason: reason})
+
+    Connection.send_message(%{
       type: "ack",
       correlation_id: correlation_id,
-      payload: %Payloads.Ack{status: "rejected", reason: reason}
+      payload: payload
     })
   end
 end

@@ -91,7 +91,22 @@ The envelope for all protocol communication.
   "image": "string",
   "params": [
     { "name": "string", "required": "boolean", "default?": "param-expected-type" }
-  ]
+  ],
+  "env": [
+    {
+      "name": "string",
+      "value?": "string",
+      "from_param?": "string",
+    }
+  ],
+  "steps": [
+    { "type": "run",        "command": "string" },
+    { "type": "copy",       "src": "string", "dest": "string" },
+    { "type": "add",        "src": "string", "dest": "string" },
+    { "type": "workdir",    "path": "string" },
+    { "type": "entrypoint", "command": "string | string[]" },
+    { "type": "cmd",        "command": "string | string[]" }
+  ],
 }
 ```
 
@@ -130,7 +145,7 @@ Sent by the node immediately on connection. Must include the authorization token
   "correlation_id": "uuid-1",
   "payload": {
     "node_id": "string",
-    "version": "string"
+    "version": "string",
   }
 }
 ```
@@ -148,26 +163,16 @@ Sent after successful authorization. Carries the current state of all apps assig
   "type": "node.sync",
   "correlation_id": "uuid-2",
   "payload": {
+    "buildpacks": [
+       // ...Models.Buildpack		  
+    ],
     "items": [
       {
         "app": {
           // Models.App
-          "id": "string",
-          "deploy_id": "string | null",
-          "name": "string",
-          "repo": "string",
-          "resources": { "memory": "integer", "cpu": "float" },
-          "env": { "KEY": "VALUE" },
-          "status": "string"
         },
         "deploy": {
           // Models.Deploy — null if no deploy exists
-          "id": "string",
-          "app_id": "string",
-          "buildpack": "string",
-          "branch": "string",
-          "commit": "string",
-          "created_at": "ISO8601 timestamp"
         }
       }
     ]
@@ -207,12 +212,6 @@ Registers a new app on the node. Does **not** start the app automatically.
   "correlation_id": "uuid-3",
   "payload": {
     // Models.App
-    "id": "string",
-    "name": "string",
-    "repo": "string",
-    "resources": { "memory": "integer", "cpu": "float" },
-    "env": { "KEY": "VALUE" },
-    "status": "stopped"
   }
 }
 ```
@@ -232,8 +231,6 @@ Updates specific fields of an existing app. `keys` explicitly lists which fields
     "keys": ["env", "resources"],
     "data": {
       // partial Models.App — only fields listed in `keys`
-      "env": { "KEY": "VALUE" },
-      "resources": { "memory": "integer", "cpu": "float" }
     }
   }
 }
@@ -251,12 +248,6 @@ Triggers a new deploy. The node builds and starts the app, then emits `app.state
   "correlation_id": "uuid-5",
   "payload": {
     // Models.Deploy
-    "id": "string",
-    "app_id": "string",
-    "buildpack": "string",
-    "branch": "string",
-    "commit": "string",
-    "created_at": "ISO8601 timestamp"
   }
 }
 ```
@@ -295,10 +286,6 @@ Uses the `correlation_id` of the triggering command, or a new UUID for spontaneo
   "correlation_id": "uuid-6",
   "payload": {
     // Models.AppState
-    "id": "string",
-    "deploy_id": "string | null",
-    "status": "stopped | starting | running | stopping | error | unknown",
-    "reason": "string | null"
   }
 }
 ```

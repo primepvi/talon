@@ -14,4 +14,8 @@ defmodule Talon.Payloads.Node.Ready do
   end
 
   field(:apps, :list, of: :schema, schema: App, required: true)
+
+  @type t() :: %{
+    apps: list(App.t())
+  }
 end
