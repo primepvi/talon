@@ -3,7 +3,6 @@ defmodule Talon.Panel.Connection do
   require Logger
 
   alias Talon.Panel.MessageHandler
-  alias Talon.Payloads
   alias Talon.Models
 
   @backoff_intervals [1_000, 2_000, 4_000, 8_000, 30_000]

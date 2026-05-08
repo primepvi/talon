@@ -40,7 +40,7 @@ defmodule Talon.App.Process do
   end
 
   @spec update(String.t(), Payloads.App.Update.t(), integer()) :: :ok
-  def redeploy(correlation_id, payload, port) do
+  def update(correlation_id, payload, port) do
     id_tuple = via_tuple(payload.id)
     GenServer.cast(id_tuple, {:update, correlation_id, payload, port})
   end
@@ -63,7 +63,7 @@ defmodule Talon.App.Process do
 
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
-        case Engine.handle_start_app_deploy(port, state.app) do
+        case Engine.handle_start_app_deploy(port, state.app, payload) do
           {:ok, container_id} ->
             GenServer.cast(
               id_tuple,
@@ -76,7 +76,7 @@ defmodule Talon.App.Process do
                }}
             )
 
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               app_id: payload.app_id,
               deploy_id: payload.id,
               state: :running
@@ -88,7 +88,7 @@ defmodule Talon.App.Process do
               {:finalize_deploy, %{deploy: payload, status: :error}}
             )
 
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               app_id: payload.app_id,
               deploy_id: payload.id,
               state: :error,
@@ -106,7 +106,7 @@ defmodule Talon.App.Process do
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
         case Engine.handle_start_app_action(action, state.container_id) do
           {:ok, status} ->
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               id: payload.id,
               deploy_id: state.deploy.id,
               state: status
@@ -117,7 +117,7 @@ defmodule Talon.App.Process do
             end
 
           {:error, reason} ->
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               id: payload.id,
               deploy_id: nil,
               state: :error,
@@ -161,7 +161,7 @@ defmodule Talon.App.Process do
                }}
             )
 
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               app_id: state.app.id,
               deploy_id: state.deploy.id,
               state: :running
@@ -173,7 +173,7 @@ defmodule Talon.App.Process do
               {:finalize_deploy, previous_state}
             )
 
-            Connection.send_app_state(correlation_id, %App.State{
+            Connection.send_app_state(correlation_id, %{
               app_id: state.app.id,
               deploy_id: state.deploy.id,
               state: :error,

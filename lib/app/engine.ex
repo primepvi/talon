@@ -70,40 +70,27 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_start_app_deploy(integer(), Payloads.App.Deploy.t()) ::
-          {:ok, String.t()} | {:error, String.t()}
-  def handle_start_app_deploy(port, %{strategy: :registry} = app) do
-    [image, tag] = String.split(app.image, ":")
-
-    with {:ok, container_id} <-
-           DockerClient.container_create(%DockerClient.ContainerConfig{
-             app_id: app.app_id,
-             name: app.name,
-             image: image,
-             tag: tag,
-             cpu: app.resources["cpu"],
-             memory: app.resources["memory"],
-             port: port,
-             env:
-               app.env
-               |> Map.to_list()
-               |> Enum.map(&"#{elem(&1, 0)}=#{elem(&1, 1)}")
-           }),
-         {:ok, nil} <- DockerClient.container_start(container_id),
-         :ok <- healthcheck(port) do
-      {:ok, container_id}
+  @spec handle_app_deploy(String.t(), Models.Deploy.t()) :: {:ok, nil} | {:error, String.t()}
+  def handle_app_deploy(correlation_id, payload) do
+    with {:ok, port} <- Talon.App.PortManager.allocate() do
+      App.Process.deploy(correlation_id, payload, port)
+      {:ok, nil}
     end
   end
 
-  def handle_start_app_deploy(port, %{strategy: :dockerfile} = app) do
-    with {:ok, _path} <- GitClient.clone(app.repo, app.name),
-         {:ok, nil} <- DockerClient.image_build(app.name, app.commit),
+  @spec handle_start_app_deploy(integer(), Payload.App.t(), Models.Deploy.t()) ::
+          {:ok, nil} | {:error, String.t()}
+  def handle_start_app_deploy(port, app, deploy) do
+    with {:ok, path} <- GitClient.clone(app.repo, app.name),
+         {:ok, buildpack} <- Talon.BuildpackStore.get(app.buildpack),
+         {:ok, _path} <- GitClient.Builder.generate_tar(path, buildpack),
+         {:ok, nil} <- DockerClient.image_build(app.name, deploy.commit),
          {:ok, container_id} <-
            DockerClient.container_create(%DockerClient.ContainerConfig{
-             app_id: app.app_id,
+             app_id: app.id,
              name: app.name,
              image: app.name,
-             tag: app.commit,
+             tag: deploy.commit,
              cpu: app.resources["cpu"],
              memory: app.resources["memory"],
              port: port,
@@ -118,7 +105,8 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_app_update(String.t(), Payloads.App.Update.t()) :: {:ok, nil} | {:error, String.t()}
+  @spec handle_app_update(String.t(), Payloads.App.Update.t()) ::
+          {:ok, nil} | {:error, String.t()}
   def handle_app_update(correlation_id, payload) do
     with {:ok, port} <- Talon.App.PortManager.allocate() do
       App.Process.update(correlation_id, payload, port)
@@ -129,7 +117,7 @@ defmodule Talon.App.Engine do
   @spec handle_start_app_update(integer(), Payloads.App.Deploy.t(), App.Process.State.t()) ::
           {:ok, String.t()} | {:error, String.t()}
   def handle_start_app_update(port, app, state) do
-    with {:ok, container_id} <- handle_start_app_deploy(port, app),
+    with {:ok, container_id} <- handle_start_app_deploy(port, app, state.deploy),
          {:ok, nil} <- DockerClient.container_stop(state.container_id),
          {:ok, nil} <- DockerClient.container_delete(state.container_id),
          :ok <- Talon.App.PortManager.release(state.container_port) do
@@ -137,7 +125,8 @@ defmodule Talon.App.Engine do
     end
   end
 
-  @spec handle_app_action(atom(), String.t(), Payloads.App.Action.t()) :: {:ok, nil} | {:error, String.t()}
+  @spec handle_app_action(atom(), String.t(), Payloads.App.Action.t()) ::
+          {:ok, nil} | {:error, String.t()}
   def handle_app_action(action, correlation_id, payload) do
     with {:ok, _pid} <- Talon.App.Supervisor.get_process(payload.app_id) do
       App.Process.action(correlation_id, payload, action)

@@ -9,6 +9,7 @@ defmodule Talon.Application do
       Talon.App.PortManager,
       Talon.Infra.Docker,
       Talon.Panel.Connection,
+      Talon.BuildpackStore,
       {Task.Supervisor, name: Talon.TaskSupervisor}
     ]
 

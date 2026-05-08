@@ -10,6 +10,7 @@ defmodule Talon.Panel.MessageHandler do
 
     with {:ok, payload} <- Payloads.Node.Sync.validate(raw_payload),
          {:ok, nil} <- Engine.handle_node_sync(correlation_id, payload) do
+      Enum.each(payload.buildpacks, &Talon.BuildpackStore.put/1)
       ack(correlation_id, :ok)
     else
       {:error, reason} -> ack(correlation_id, {:error, reason})
@@ -41,7 +42,7 @@ defmodule Talon.Panel.MessageHandler do
   def dispatch(%{"type" => "app.deploy"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
-    with {:ok, payload} <- Models.App.Deploy.validate(raw_payload),
+    with {:ok, payload} <- Models.Deploy.validate(raw_payload),
          {:ok, nil} <- Engine.handle_app_deploy(correlation_id, payload) do
       ack(correlation_id, :ok)
     else
