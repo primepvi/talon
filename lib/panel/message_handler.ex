@@ -8,10 +8,10 @@ defmodule Talon.Panel.MessageHandler do
   def dispatch(%{"type" => "node.sync"} = message) do
     %{"correlation_id" => correlation_id, "payload" => raw_payload} = message
 
-    with {:ok, payload} <- Payloads.Node.Sync.validate(raw_payload),
-         {:ok, nil} <- Engine.handle_node_sync(correlation_id, payload) do
+    with {:ok, payload} <- Payloads.Node.Sync.validate(raw_payload) do
       Enum.each(payload.buildpacks, &Talon.BuildpackStore.put/1)
       ack(correlation_id, :ok)
+      {:ok, nil} = Engine.handle_node_sync(correlation_id, payload)
     else
       {:error, reason} -> ack(correlation_id, {:error, reason})
     end

@@ -2,12 +2,12 @@ defmodule Talon.Infra.Docker.Dockerfile do
   alias Talon.Models.Buildpack
 
   @spec generate(Buildpack.t()) :: String.t()
-  def generate(bp) do
+  def generate(%{ "image" => image, "params" => params, "env" => env, "steps" => steps} = bp) do
     [
-      "FROM #{bp.image}",
-      generate_args_lines(bp.params),
-      generate_envs_lines(bp.env),
-      generate_steps_lines(bp.steps)
+      "FROM #{image}",
+      generate_args_lines(params),
+      generate_envs_lines(env),
+      generate_steps_lines(steps)
     ]
     |> List.flatten()
     |> Enum.join("\n")
@@ -33,13 +33,13 @@ defmodule Talon.Infra.Docker.Dockerfile do
   defp generate_steps_lines(steps), do: Enum.map(steps, &generate_step_line/1)
 
   @spec generate_step_line(Buildpack.Step.t()) :: String.t()
-  defp generate_step_line(%{type: "copy", src: src, dest: dest}), do: "COPY #{src} #{dest}"
-  defp generate_step_line(%{type: "run", command: cmd}), do: "RUN #{Enum.join(cmd, " ")}"
-  defp generate_step_line(%{type: "cmd", command: cmd}), do: "CMD #{Enum.join(cmd, " ")}"
-  defp generate_step_line(%{type: "workdir", path: path}), do: "WORKDIR #{path}"
+  defp generate_step_line(%{"type" => "copy", "src" => src, "dest" => dest}), do: "COPY #{src} #{dest}"
+  defp generate_step_line(%{"type" => "run", "command" => cmd}), do: "RUN #{inspect(cmd)}"
+  defp generate_step_line(%{"type" => "cmd", "command" => cmd}), do: "CMD #{inspect(cmd)}"
+  defp generate_step_line(%{"type" => "workdir", "path" => path}), do: "WORKDIR #{path}"
 
-  defp generate_step_line(%{type: "entrypoint", command: cmd}),
-    do: "ENTRYPOINT #{Enum.join(cmd, " ")}"
+  defp generate_step_line(%{"type" => "entrypoint", "command" => cmd}),
+    do: "ENTRYPOINT #{inspect(cmd)}"
 
-  defp generate_step_line(%{type: "add", src: src, dest: dest}), do: "ADD #{src} #{dest}"
+  defp generate_step_line(%{"type" => "add", "src" => src, "dest" => dest}), do: "ADD #{src} #{dest}"
 end

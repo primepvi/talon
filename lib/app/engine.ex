@@ -4,6 +4,7 @@ defmodule Talon.App.Engine do
   alias Talon.Infra.Git, as: GitClient
 
   alias Talon.Payloads
+  alias Talon.Models
   alias Talon.App
 
   @spec handle_node_sync(String.t(), Payloads.Node.Sync.t()) :: {:ok, nil} | {:error, String.t()}
@@ -11,9 +12,17 @@ defmodule Talon.App.Engine do
     {:ok, _task_pid} =
       Task.Supervisor.start_child(Talon.TaskSupervisor, fn ->
         ready_apps =
-          Enum.map(payload.apps, fn app ->
+          Enum.map(payload.items, fn payload ->
+            {:ok, app} = Models.App.validate(payload["app"])
+
+            deploy =
+              case Models.Deploy.validate(payload["deploy"] || %{}) do
+                {:ok, deploy} -> deploy
+                _ -> nil
+              end
+
             {container_id, status} =
-              case DockerClient.container_inspect("#{app.name}_#{app.app_id}") do
+              case DockerClient.container_inspect("#{app.name}_#{app.id}") do
                 {:ok,
                  %DockerEngineAPI.Model.ContainerInspectResponse{
                    Id: container_id,
@@ -35,17 +44,17 @@ defmodule Talon.App.Engine do
                   {nil, :unknown}
               end
 
-            case App.Supervisor.get_process(app.app_id) do
+            case App.Supervisor.get_process(app.id) do
               {:error, _reason} ->
                 App.Supervisor.create_process(%App.Process.State{
                   app: app,
                   container_id: container_id,
                   status: status,
-                  deploy: payload.deploy
+                  deploy: deploy
                 })
             end
 
-            %{id: app.app_id, status: status}
+            %{id: app.id, status: status}
           end)
 
         Connection.send_message(%{
@@ -65,7 +74,7 @@ defmodule Talon.App.Engine do
     with {:ok, _pid} <-
            App.Supervisor.create_process(%App.Process.State{
              app: payload
-           }) do
+}) do
       {:ok, nil}
     end
   end

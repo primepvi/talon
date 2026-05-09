@@ -20,12 +20,17 @@ defmodule Talon.Panel.Connection do
 
   @spec send_message(Models.Message.t(map())) :: :ok
   def send_message(message) do
+    IO.puts("ENVIADO")
+    IO.inspect(message)
+   
     {:ok, message} = Models.Message.validate(message)
     WebSockex.cast(__MODULE__, {:send, {:text, Jason.encode!(message)}})
   end
 
   @spec send_app_state(String.t(), Models.AppState.t()) :: :ok
-  def send_app_state(correlation_id, payload) do
+  def send_app_state(correlation_id, state) do
+    {:ok, payload} = Models.AppState.validate(state)
+    
     send_message(%{
       type: "app.state",
       correlation_id: correlation_id,
@@ -60,8 +65,13 @@ defmodule Talon.Panel.Connection do
 
   @impl true
   def handle_frame({:text, msg}, state) do
-    msg
+    result = msg
     |> Jason.decode!()
+
+    IO.puts("RECEBIDO")
+    IO.inspect(result)
+    
+    result
     |> MessageHandler.dispatch()
 
     {:ok, state}

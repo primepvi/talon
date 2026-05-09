@@ -26,7 +26,7 @@ defmodule Talon.BuildpackStore do
 
   @impl true
   def handle_call({:put, buildpack}, _from, state) do
-    {:reply, :ok, Map.put(state, buildpack.name, buildpack)}
+    {:reply, :ok, Map.put(state, buildpack["name"], buildpack)}
   end
 
   def handle_call({:get, name}, _from, state) do

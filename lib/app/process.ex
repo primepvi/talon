@@ -7,7 +7,7 @@ defmodule Talon.App.Process do
   alias Talon.Models
 
   defmodule State do
-    defstruct [:app, status: :unkown, container_id: nil, container_port: nil, deploy: nil]
+    defstruct [:app, status: :unknown, container_id: nil, container_port: nil, deploy: nil]
 
     @type t() :: %__MODULE__{
             app: Models.App.t(),
